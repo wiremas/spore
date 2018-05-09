@@ -72,19 +72,21 @@ class SporeState(object):
 
 
     def get_node_state(self):
-        modes = ['place', 'spray', 'scale', 'align', 'smooth', 'move', 'id']
+        modes = ['place', 'spray', 'scale', 'align', 'smooth', 'random', 'move', 'id']
         mode_id = cmds.getAttr('{}.contextMode'.format(self.node))
-        print 'mode: ', modes[mode_id], mode_id
+        align_modes = ['normal', 'world', 'object', 'stroke']
+        align_id = cmds.getAttr('{}.alignTo'.format(self.node))
         self.state = {'mode': modes[mode_id],
                       'num_samples': cmds.getAttr('{}.numBrushSamples'.format(self.node)),
                       'min_distance': cmds.getAttr('{}.minDistance'.format(self.node)),
-                      'align_to': cmds.getAttr('{}.alignTo'.format(self.node)),
+                      'align_to': align_modes[align_id],
                       'strength': cmds.getAttr('{}.strength'.format(self.node)),
                       'min_rot': cmds.getAttr('{}.minRotation'.format(self.node))[0],
                       'max_rot': cmds.getAttr('{}.maxRotation'.format(self.node))[0],
                       'uni_scale': cmds.getAttr('{}.uniformScale'.format(self.node)),
                       'min_scale': cmds.getAttr('{}.minScale'.format(self.node))[0],
                       'max_scale': cmds.getAttr('{}.maxScale'.format(self.node))[0],
+                      'scale_factor': cmds.getAttr('{}.scaleFactor'.format(self.node)),
                       'min_offset': cmds.getAttr('{}.minOffset'.format(self.node)),
                       'max_offset': cmds.getAttr('{}.maxOffset'.format(self.node)),
                       'min_id': cmds.getAttr('{}.minId'.format(self.node)),
@@ -288,6 +290,17 @@ class SporeState(object):
         # TODO - do some checking if all the array are the same length?
 
         return self.position.length()
+
+    def get_scale_average(self, index):
+
+        scale_values = np.empty((0,3), float)
+        for i in index:
+            np.append(scale_values, [[self.scale[i].x,
+                                      self.scale[i].y,
+                                      self.scale[i].z]], axis=0)
+
+        scale_mean = np.mean(scale_values, axis=0)
+        print scale_values, scale_mean
 
     def get_closest_points(self, position, radius):
         if isinstance(position, om.MPoint):

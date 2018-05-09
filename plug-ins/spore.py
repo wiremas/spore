@@ -1,42 +1,24 @@
 import sys
-import traceback
 
 import pymel
+from maya import mel
 import pymel.core as pm
 import maya.OpenMaya as om
-import maya.OpenMayaMPx as ompx
 import maya.OpenMayaUI as omui
+import maya.OpenMayaMPx as ompx
 import maya.OpenMayaRender as omr
-
-#  print __file__
-#  print sys.path
 
 from scripted import spore_node
 from scripted import spore_context
-#  from scripted import spore_tool
-#  from scripted import place_tool
-#  from scripted import spray_tool
-#  from scripted import scale_tool
-#  from scripted import align_tool
-#  from scripted import move_tool
-
-#  from scripted import context
-#  from scripted import spore_tool
-#  from scripted import spore_tool_cmd
-#  from scripted import spray_cmd
-#  from spore.ui import navigator
-#  reload(navigator)
 reload(spore_node)
 reload(spore_context)
-#  reload(spore_tool)
-#  reload(place_tool)
-#  reload(spray_tool)
-#  reload(spore_tool)
-#  reload(scale_tool)
-#  reload(align_tool)
-#  reload(move_tool)
-#  reload(spore_tool_cmd)
 
+try:
+    import AEsporeNodeTemplate
+    reload (AEsporeNodeTemplate)
+
+except:
+    raise ImportError('Could not import sporeNode Attribute Editor ui')
 
 def initializePlugin(mobject):
 
@@ -71,90 +53,6 @@ def initializePlugin(mobject):
         sys.stderr.write("Failed to register context command: %s\n" % spore_context.K_CONTEXT_NAME)
         raise
 
-    #  try:
-    #      mplugin.registerContextCommand(place_tool.K_CONTEXT_NAME,
-    #                                     place_tool.PlaceContextCommand.creator,
-    #                                     place_tool.K_TOOL_CMD_NAME,
-    #                                     place_tool.PlaceToolCmd.creator,
-    #                                     place_tool.PlaceToolCmd.syntax)
-    #  except:
-    #      sys.stderr.write("Failed to register context command: %s\n" % place_tool.K_CONTEXT_NAME)
-    #      raise
-    #
-    #  try:
-    #      mplugin.registerContextCommand(spray_tool.K_CONTEXT_NAME,
-    #                                     spray_tool.SprayContextCommand.creator,
-    #                                     spray_tool.K_TOOL_CMD_NAME,
-    #                                     spray_tool.SprayToolCmd.creator,
-    #                                     spray_tool.SprayToolCmd.syntax)
-    #  except:
-    #      sys.stderr.write("Failed to register context command: %s\n" % spray_tool.K_CONTEXT_NAME)
-    #      raise
-
-    #  try:
-    #      mplugin.registerContextCommand(move_tool.K_CONTEXT_NAME,
-    #                                     move_tool.SprayContextCommand.creator,
-    #                                     move_tool.K_TOOL_CMD_NAME,
-    #                                     move_tool.SprayToolCmd.creator,
-    #                                     move_tool.SprayToolCmd.syntax)
-    #  except:
-    #      sys.stderr.write("Failed to register context command: %s\n" % move_tool.K_CONTEXT_NAME)
-    #      raise
-    #
-    #  try:
-    #      mplugin.registerContextCommand(scale_tool.K_CONTEXT_NAME,
-    #                                     scale_tool.ScaleContextCommand.creator,
-    #                                     scale_tool.K_TOOL_CMD_NAME,
-    #                                     scale_tool.ScaleToolCmd.creator,
-    #                                     scale_tool.ScaleToolCmd.syntax)
-    #  except:
-    #      sys.stderr.write("Failed to register context command: %s\n" % scale_tool.K_CONTEXT_NAME)
-    #      raise
-    #
-    #
-    #  try:
-    #      mplugin.registerContextCommand(align_tool.K_CONTEXT_NAME,
-    #                                     align_tool.AlignContextCommand.creator,
-    #                                     align_tool.K_TOOL_CMD_NAME,
-    #                                     align_tool.AlignToolCmd.creator,
-    #                                     align_tool.AlignToolCmd.syntax)
-    #  except:
-    #      sys.stderr.write("Failed to register context command: %s\n" % align_tool.K_CONTEXT_NAME)
-    #      raise
-    #
-    #  try:
-    #      mplugin.registerContextCommand(move_tool.K_CONTEXT_NAME,
-    #                                     move_tool.MoveContextCommand.creator,
-    #                                     move_tool.K_TOOL_CMD_NAME,
-    #                                     move_tool.MoveToolCmd.creator,
-    #                                     move_tool.MoveToolCmd.syntax)
-    #  except:
-    #      sys.stderr.write("Failed to register context command: %s\n" % move_tool.K_CONTEXT_NAME)
-    #      raise
-    #
-
-
-
-
-    #  try:
-    #      mplugin.registerContextCommand(spore_tool.ContextCommand.name,
-    #                                     spore_tool.ContextCommand.creator,
-    #                                     spore_tool.tool_cmd_name,
-    #                                     spore_tool.cmd_creator)
-    #  except:
-    #      sys.stderr.write( "Failed to register node: %s" % spore_tool.ContextCommand.name)
-    #      raise
-    #
-    #  try:
-    #      mplugin.registerCommand(spray_cmd.SprayCommnad.kPluginCmdName,
-    #                              spray_cmd.SprayCommand.cmdCreator,
-    #                              spray_cmd.SprayCommand.syntaxCreator)
-    #  except:
-    #      sys.stderr.write("Failed to register command: %s\n" % kPluginCmdName)
-    #      raise
-    #
-
-
 def uninitializePlugin(mobject):
 
     mplugin = ompx.MFnPlugin(mobject)
@@ -176,36 +74,6 @@ def uninitializePlugin(mobject):
         sys.stderr.write("Failed to deregister node: %s" % spore_node.SporeNode.name)
         raise
 
-
-    #  try:
-    #      mplugin.deregisterContextCommand(spray_tool.K_CONTEXT_NAME)
-    #  except:
-    #      sys.stderr.write("Failed to deregister node: %s" % spray_tool.K_CONTEXT_NAME)
-    #      raise
-    #
-    #  #  try:
-    #  #      mplugin.deregisterContextCommand(move_tool.K_CONTEXT_NAME)
-    #  #  except:
-    #  #      sys.stderr.write("Failed to deregister node: %s" % move_tool.K_CONTEXT_NAME)
-    #  #      raise
-    #  #
-    #  try:
-    #      mplugin.deregisterContextCommand(scale_tool.K_CONTEXT_NAME)
-    #  except:
-    #      sys.stderr.write("Failed to deregister node: %s" % scale_tool.K_CONTEXT_NAME)
-    #      raise
-    #
-    #  try:
-    #      mplugin.deregisterContextCommand(align_tool.K_CONTEXT_NAME)
-    #  except:
-    #      sys.stderr.write("Failed to deregister node: %s" % align_tool.K_CONTEXT_NAME)
-    #      raise
-    #
-    #  try:
-    #      mplugin.deregisterContextCommand(move_tool.K_CONTEXT_NAME)
-    #  except:
-    #      sys.stderr.write("Failed to deregister node: %s" % move_tool.K_CONTEXT_NAME)
-    #      raise
 
 #  def load_spore_template(node_name):
 #      from spore.ui import AEsporeNodeTemplate

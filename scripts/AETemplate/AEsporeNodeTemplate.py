@@ -31,13 +31,6 @@ class AEsporeNodeTemplate(AETemplate):
         #  print self.__dict__, self
         #  print cmds.setParent(q=True)
 
-        # create a tuple of all controls and a dict that associates each control
-        # to a specific context style
-        self.brush_crtls = ('minDistance', 'strength', 'numBrushSamples',
-                            'alignTo', 'minRotation', 'maxRotation',
-                            'uniformScale', 'minScale', 'maxScale', 'scaleFactor', 'minOffset',
-                            'maxOffset', 'minId', 'maxId', 'usePressureMapping',
-                            'pressureMapping', 'minPressure', 'maxPressure')
         #  self.emit_crtls = ('gridSize', 'minEmitDistance')
         #
         self.beginScrollLayout()
@@ -119,45 +112,6 @@ class AEsporeNodeTemplate(AETemplate):
         #  tsl = cmds.textScrollList(parent=foo)
         #  self.endLayout(
 
-        self.beginLayout('Instanced Objects', collapse=0)
-        self.callCustom(self.add_instance_list, self.update_instance_list)
-        self.endLayout()
-
-        #  self.beginLayout('Instanced Objects', collapse=0)
-        #  self.endLayout()
-
-        # brush properties
-        self.beginLayout('Brush', collapse=0)
-        self.callCustom(self.add_brush_btn, self.update_brush_btn, 'contextMode')
-        self.addControl('numBrushSamples', label='Number Of Samples')
-        self.addSeparator()
-        self.addControl('minDistance', label='Min Distance')
-        self.addSeparator()
-        self.addControl('alignTo', label='Align To')
-        self.addControl('strength', label='Weight')
-        #  self.addSeparator()
-        self.addControl('minRotation', label='Min Rotation')
-        self.addControl('maxRotation', label='Max Rotation')
-        self.addSeparator()
-        #  self.callCustom(self.add_scale_crtl, self.update
-        self.addControl('uniformScale', label='Uniform Scale', changeCommand=self.uniform_scale_toggle)
-        self.addControl('minScale', label='Min Scale')
-        self.addControl('maxScale', label='Max Scale')
-        self.addControl('scaleFactor', label='Scale Factor')
-        self.addSeparator()
-        self.addControl('minOffset', label='Min Offset')
-        self.addControl('maxOffset', label='Max Offset')
-        self.addSeparator()
-        self.addControl('minId', label='Min Id', changeCommand=lambda _: self.index_cc('min'))
-        self.addControl('maxId', label='Max Id', changeCommand=lambda _: self.index_cc('max'))
-        self.addSeparator()
-        self.addControl('usePressureMapping', label='Use Pen Pressure', changeCommand=self.use_pressure_cc)
-        self.addControl('pressureMapping', label='Pessure Mapping')
-        self.addControl('minPressure', label='Min Pessure')
-        self.addControl('maxPressure', label='Max Pessure')
-        #  self.callCustom(self.add_pressure_cbx, self.update_pressure_cbx, 'usePressureMapping')
-        self.endLayout()
-
         # emit properties
         self.beginLayout('Emit', collapse=1)
         self.addControl('emitType', label='Type', changeCommand=self.emit_type_cc)
@@ -177,6 +131,45 @@ class AEsporeNodeTemplate(AETemplate):
         self.callCustom(self.add_emit_btn, self.update_emit_btn, "emit" )
         self.endLayout()
 
+        # brush properties
+        self.beginLayout('Brush', collapse=0)
+        self.callCustom(self.add_brush_btn, self.update_brush_btn, 'contextMode')
+        self.addControl('numBrushSamples', label='Number Of Samples')
+        self.addSeparator()
+        self.addControl('minDistance', label='Min Distance')
+        self.addSeparator()
+        self.addControl('fallOff', label='Falloff')
+        self.dimControl(self._node, 'fallOff', True)
+        self.addSeparator()
+        self.addControl('alignTo', label='Align To')
+        self.addControl('strength', label='Weight')
+        self.addControl('minRotation', label='Min Rotation')
+        self.addControl('maxRotation', label='Max Rotation')
+        self.addSeparator()
+        self.addControl('uniformScale', label='Uniform Scale', changeCommand=self.uniform_scale_toggle)
+        self.addControl('minScale', label='Min Scale')
+        self.addControl('maxScale', label='Max Scale')
+        self.addControl('scaleFactor', label='Scale Factor')
+        self.dimControl(self._node, 'scaleFactor', True)
+        self.addSeparator()
+        self.addControl('minOffset', label='Min Offset')
+        self.addControl('maxOffset', label='Max Offset')
+        self.addSeparator()
+        self.addControl('minId', label='Min Id', changeCommand=lambda _: self.index_cc('min'))
+        self.addControl('maxId', label='Max Id', changeCommand=lambda _: self.index_cc('max'))
+        self.addSeparator()
+        self.addControl('usePressureMapping', label='Use Pen Pressure', changeCommand=self.use_pressure_cc)
+        self.addControl('pressureMapping', label='Pessure Mapping')
+        self.addControl('minPressure', label='Min Pessure')
+        self.addControl('maxPressure', label='Max Pessure')
+        #  self.callCustom(self.add_pressure_cbx, self.update_pressure_cbx, 'usePressureMapping')
+        self.endLayout()
+
+        self.beginLayout('Instanced Objects', collapse=0)
+        self.callCustom(self.add_instance_list, self.update_instance_list)
+        self.endLayout()
+
+
         self.beginLayout('I/O', collapse=1)
         self.beginLayout('input', collapse=1)
         self.endLayout()
@@ -187,6 +180,7 @@ class AEsporeNodeTemplate(AETemplate):
 
         # display properties
         self.beginLayout('Display', collapse=1)
+        self.addControl('numSpores', label='Number of Points')
         #  self.addControl('pointVisibility', label='Display Spores')
         #  self.addControl('normalVisibility', label='Display Normals')
         #  self.addControl('displaySize', label='Spore Radius')
@@ -245,6 +239,25 @@ class AEsporeNodeTemplate(AETemplate):
 
 
     # ------------------------------------------------------------------------ #
+    # falloff control
+    # ------------------------------------------------------------------------ #
+
+    #  def add_falloff_ctrl(self):
+    #      cmds.rowLayout('falloffLayou', nc=3)
+    #      cmds.text(l='Falloff')
+    #      rb_collection = cmds.radioCollection()
+    #      cmds.radioButton('noFalloffRadio', l='None') #, onc=pm.Callback(self.set_falloff_ctrl, 0))
+    #      cmds.radioButton('linearFalloffRadio', l='Linear') #, onc=pm.Callback(self.set_falloff_ctrl, 1))
+    #      cmds.setParent('..')
+    #      #  cmds.setParent('..')
+    #
+    #  def update_falloff_ctrl(self):
+    #      print 'update falloff ctrl'
+    #
+    #  def set_falloff_ctrl(self, falloff):
+    #      cmds.setAttr('{}.fallOff'.foramt(falloff))
+
+    # ------------------------------------------------------------------------ #
     # emit button
     # ------------------------------------------------------------------------ #
 
@@ -267,14 +280,15 @@ class AEsporeNodeTemplate(AETemplate):
     def add_brush_btn(self, attr):
         """ replace the default combobox with a button for each entry """
 
-        cmds.rowLayout( nc=7 ) #, adjustableColumn=6) #, w=270 ) #, columnWidth3=(80, 75, 150),  columnAlign=(1, 'right'), columnAttach=[(1, 'both', 0), (2, 'both', 0), (3, 'both', 0)] )
+        cmds.rowLayout('instanceLayout', nc=8 ) #, adjustableColumn=6) #, w=270 ) #, columnWidth3=(80, 75, 150),  columnAlign=(1, 'right'), columnAttach=[(1, 'both', 0), (2, 'both', 0), (3, 'both', 0)] )
         cmds.button('placeBtn', l='Place', c=pm.Callback(self.activateContext, 'place', attr, 0))
         cmds.button('sprayBtn', l='Spray', c=pm.Callback(self.activateContext, 'spray', attr, 1))
         cmds.button('scaleBtn', l='Scale', c=pm.Callback(self.activateContext, 'scale', attr, 2))
         cmds.button('alignBtn', l='Align', c=pm.Callback(self.activateContext, 'align', attr, 3))
         cmds.button('smoothBtn', l='Smooth', c=pm.Callback(self.activateContext, 'smooth', attr, 4))
-        cmds.button('moveBtn', l='Move', c=pm.Callback(self.activateContext, 'move', attr, 5))
-        cmds.button('idBtn', l='Id', c=pm.Callback(self.activateContext, 'id', attr, 6))
+        cmds.button('randomBtn', l='Randomize', c=pm.Callback(self.activateContext, 'random', attr, 5))
+        cmds.button('moveBtn', l='Move', c=pm.Callback(self.activateContext, 'move', attr, 6))
+        cmds.button('idBtn', l='Id', c=pm.Callback(self.activateContext, 'id', attr, 7))
         cmds.setParent('..')
 
         print 'build btns'
@@ -287,8 +301,9 @@ class AEsporeNodeTemplate(AETemplate):
         cmds.button('scaleBtn', e=True, c=pm.Callback(self.activateContext, 'scale', attr, 2))
         cmds.button('alignBtn', e=True, c=pm.Callback(self.activateContext, 'align', attr, 3))
         cmds.button('smoothBtn', e=True, c=pm.Callback(self.activateContext, 'smooth', attr, 4))
-        cmds.button('moveBtn', e=True, c=pm.Callback(self.activateContext, 'move', attr, 5))
-        cmds.button('idBtn', e=True, c=pm.Callback(self.activateContext, 'id', attr, 6))
+        cmds.button('randomBtn', e=True, c=pm.Callback(self.activateContext, 'random', attr, 5))
+        cmds.button('moveBtn', e=True, c=pm.Callback(self.activateContext, 'move', attr, 6))
+        cmds.button('idBtn', e=True, c=pm.Callback(self.activateContext, 'id', attr, 7))
 
         self._node = attr.split('.')[0]
 
@@ -306,13 +321,21 @@ class AEsporeNodeTemplate(AETemplate):
         attr_name = attr.split('.')[-1]
         node_name = attr.split('.')[0]
 
+        # create a tuple of all controls and a dict that associates each control
+        # to a specific context style
+        self.brush_crtls = ('minDistance', 'falloff', 'strength', 'numBrushSamples',
+                            'alignTo', 'minRotation', 'maxRotation',
+                            'uniformScale', 'minScale', 'maxScale', 'scaleFactor', 'minOffset',
+                            'maxOffset', 'minId', 'maxId', 'usePressureMapping',
+                            'pressureMapping', 'minPressure', 'maxPressure')
         p_map = cmds.getAttr('{}.usePressureMapping'.format(self._node))
-        dim_crtl = {                #    minD,  stren,  numS,   aliTo   minR,   maxR,   uniS    minS,   maxS,   sFac    ,minO,   maxO,   minI,   maxI,   pre,    map,    minP,   maxP
-                    'place':            (True,  True,   False,  True,   True,   True,   True,   True,   True,   False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
-                    'spray':            (True,  True,   True,   True,   True,   True,   True,   True,   True,   False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
-                    'scale':            (False, False,  False,  False,  False,  False,  True,   True,   True,   False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'align':            (False, True,   False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'smooth':           (False, True,   False,  False,  False,  False,  False,  False,  False,  True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
+        dim_crtl = {                #    minD,  foff,   stren,  numS,   aliTo   minR,   maxR,   uniS    minS,   maxS,   sFac    ,minO,   maxO,   minI,   maxI,   pre,    map,    minP,   maxP
+                    'place':            (True,  False,  True,   False,  True,   True,   True,   True,   True,   True,   False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
+                    'spray':            (True,  False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
+                    'scale':            (False, True,   False,  False,  False,  False,  False,  False,  False,  False,  True ,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    'align':            (False, True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    'smooth':           (False, True,   True,   False,  False,  False,  False,  False,  False,  False,  True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    'random':           (False, True,   True,   False,  False,  False,  False,  False,  False,  False,  True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
                     'move':             (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
                     'id':               (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   False,  False,  p_map,  p_map),
                     }

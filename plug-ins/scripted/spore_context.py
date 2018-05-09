@@ -1,25 +1,3 @@
-"""
-spore tool module provides base classes for creating new spore tools
-SpooreToolCmd: Abstract baseclass for the command that will be triggered
-               by the context.
-               a. provides access to undo/redo stack
-               b. doIt, undoIt, redoIt, finalize should be overwritten to
-                  implement functionality
-               c. a reference to the brush state object is passed to the command
-                  on "toolOnSetup". therefore the "brush_state" attribute can be
-                  used to access certain brush properties.
-SporeContext: The actual tool context.
-              a. Provides basic drawing. Drawing should be overritten by
-                 overriting the "canvas" class attribute in the "toolOnSetup"
-                 method with another canvas object.
-              b. the class attr "state" holds a brush state object which holds
-                 various information about the brush as well as all its user
-                 settings.
-SporeContextCommand: now need to drevie from this class since it does not really
-                     provide any functionality other than giving maya acces to
-                     to the Context.
-"""
-
 import math
 import random
 
@@ -118,8 +96,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.spray_coords = []
 
     def __del__(self):
-        print 'DEL COMMAND', K_TRACKING_DICTIONARY, ompx.asHashable(self)
-        del K_TRACKING_DICTIONARY[ompx.asHashable(self)]
+        try:
+            del K_TRACKING_DICTIONARY[ompx.asHashable(self)]
+        except KeyError:
+            pass
 
     @staticmethod
     def creator():
@@ -138,7 +118,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
     """ -------------------------------------------------------------------- """
 
     def doIt(self, args):
-        print 'doIt'
+        self.displayInfo('Calling {} from the script editor is not supported\
+                         '.format(K_TOOL_CMD_NAME))
+
+        return
 
 
     def redoIt(self):
@@ -147,14 +130,27 @@ class SporeToolCmd(ompx.MPxToolCommand):
         if self.node_state.state['mode'] == 'place'\
         or self.node_state.state['mode'] == 'spray': #'place':
             self.place_action(flag)
-        #  elif self.node_state.state['mode'] == 1: #'spray':
-        #      self.spray_action(flag)
+
         elif self.node_state.state['mode'] == 'scale': #'scale'
-            self.scale_action(flag)
+            if self.brush_state.shift_mod: # smooth
+                self.smooth_scale_action(flag)
+            elif self.brush_state.meta_mod: # randomize
+                self.random_scale_action(flag)
+            else: # scale
+                self.scale_action(flag)
+
         elif self.node_state.state['mode'] == 'align': #'align'
             self.align_action(flag)
+
+        elif slef.node_state.state['mode'] == 'smooth':
+            self.smooth_action(flag)
+
+        elif slef.node_state.state['mode'] == 'random':
+            self.randomize_action(flag)
+
         elif self.node_state.state['mode'] == 'move': #'move':
             self.move_action(flag)
+
         elif self.node_state.state['mode'] == 'id': #'index':
             self.index_action(flag)
 
@@ -212,30 +208,15 @@ class SporeToolCmd(ompx.MPxToolCommand):
     """ -------------------------------------------------------------------- """
 
     def place_action(self, flag):
-        position = om.MPoint(self.brush_state.position[0],
-                             self.brush_state.position[1],
-                             self.brush_state.position[2])
-        normal = om.MVector(self.brush_state.normal[0],
-                            self.brush_state.normal[1],
-                            self.brush_state.normal[2])
-        tangent = om.MVector(self.brush_state.tangent[0],
-                             self.brush_state.tangent[1],
-                             self.brush_state.tangent[2])
+        position, normal, tangent = self.get_brush_coords()
 
         # return if we under min_distance threashold
-        if not self.brush_state.drag_mode and self.last_brush_position:
+        if not self.brush_state.shift_mod and self.last_brush_position:
             min_distance = self.node_state.state['min_distance']
             if position.distanceTo(self.last_brush_position) < min_distance:
                 return
 
         self.last_brush_position = position
-
-        #  num_points = self.node_state.length()
-        #  if num_points and not self.brush_state.drag_mode:
-        #      min_distance = self.node_state.state['min_distance']
-        #      last_position = om.MPoint(self.node_state.position[num_points - 1])
-        #      if position.distanceTo(last_position) < min_distance:
-        #          return
 
         # set number of samples or default to 1 in place mode
         if self.node_state.state['mode'] == 'spray': # spray mode
@@ -249,7 +230,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
             # if in spay mode get random coords on the brush dist or get last values
             if self.node_state.state['mode'] == 'spray': # spray mode
-                if self.brush_state.drag_mode and flag != SporeToolCmd.k_click:
+                if self.brush_state.shift_mod and flag != SporeToolCmd.k_click:
                     angle, distance = self.spray_coords[i]
                 else:
                     angle = random.uniform(0, 2 * math.pi)
@@ -284,7 +265,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
             self.poly_id.set(0, i)
 
         # set or append data
-        if self.brush_state.drag_mode and flag != SporeToolCmd.k_click:
+        if self.brush_state.shift_mod and flag != SporeToolCmd.k_click:
             self.node_state.set_points(self.point_id,
                                     self.position,
                                     self.scale,
@@ -313,29 +294,19 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.node_state.set_state()
 
     def align_action(self, flag):
-        print 'align'
-        position = om.MPoint(self.brush_state.position[0],
-                             self.brush_state.position[1],
-                             self.brush_state.position[2])
-        normal = om.MVector(self.brush_state.normal[0],
-                            self.brush_state.normal[1],
-                            self.brush_state.normal[2])
-        tangent = om.MVector(self.brush_state.tangent[0],
-                             self.brush_state.tangent[1],
-                             self.brush_state.tangent[2])
+        position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
 
         neighbour = self.node_state.get_closest_points(position, radius)
         self.set_cache_length(len(neighbour))
         for i, index in enumerate(neighbour):
             rotation = self.node_state.rotation[index]
-            print 'init rotation', rotation
+            print 'init rotation', rotation.x, rotation.y, rotation.z
             normal = self.node_state.normal[index]
             direction = self.get_alignment(normal)
             rotation = self.rotate_into(direction, rotation)
-            print 'new rotation', rotation
 
-            print self.node_state.position[index], i, self.position.length()
+            #  print self.node_state.position[index], i, self.position.length()
             self.position.set(self.node_state.position[index], i)
             self.scale.set(self.node_state.scale[index], i)
             self.rotation.set(rotation, i)
@@ -362,7 +333,47 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
 
     def scale_action(self, flag):
-        print 'scale'
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+
+        neighbour = self.node_state.get_closest_points(position, radius)
+        self.set_cache_length(len(neighbour))
+
+        for i, index in enumerate(neighbour):
+            scale = self.node_state.scale[index]
+            factor = self.node_state.state['scale_factor']
+            scale = scale * factor
+
+            self.position.set(self.node_state.position[index], i)
+            self.scale.set(scale, i)
+            self.rotation.set(self.node_state.rotation[index], i)
+            self.instance_id.set(self.node_state.instance_id[index], i)
+            self.normal.set(self.node_state.normal[index], i)
+            self.tangent.set(self.node_state.tangent[index], i)
+            self.u_coord.set(self.node_state.u_coord[index], i)
+            self.v_coord.set(self.node_state.v_coord[index], i)
+            self.poly_id.set(self.node_state.poly_id[index], i)
+
+        self.node_state.set_points(neighbour,
+                                self.position,
+                                self.scale,
+                                self.rotation,
+                                self.instance_id,
+                                self.normal,
+                                self.tangent,
+                                self.u_coord,
+                                self.v_coord,
+                                self.poly_id,
+                                self.color)
+
+        self.node_state.set_state()
+
+    def smooth_scale_action(self, flag):
+        #  self.node_state.get_scale_average(neighbour)
+        print 'smooth scale'
+
+    def random_scale_action(self, flag):
+        print 'randomize scale'
 
     def move_action(self, flag):
         print 'move'
@@ -370,38 +381,46 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def index_action(self, flag):
         print 'index'
 
+
     """ -------------------------------------------------------------------- """
     """ utils """
     """ -------------------------------------------------------------------- """
 
-    def parse_args(self, args):
-        pass
-        # TODO - generate a new brush state and initialize the tool cmd
+    def get_brush_coords(self):
+        """ get current brush position, normal and tangent """
+
+        position = om.MPoint(self.brush_state.position[0],
+                             self.brush_state.position[1],
+                             self.brush_state.position[2])
+        normal = om.MVector(self.brush_state.normal[0],
+                            self.brush_state.normal[1],
+                            self.brush_state.normal[2])
+        tangent = om.MVector(self.brush_state.tangent[0],
+                             self.brush_state.tangent[1],
+                             self.brush_state.tangent[2])
+
+        return position, normal, tangent
 
     def get_alignment(self, normal):
         """ get the alignment vector """
+        print 'metamod', self.brush_state.meta_mod
 
-        #  direction = om.MVector(self.brush_state.normal[0],
-        #                         self.brush_state.normal[1],
-        #                         self.brush_state.normal[2])
-        direction = normal
-
-        if self.node_state.state['align_to'] == 1: # align to world
-            print 'align to world'
+        if self.node_state.state['align_to'] == 'world': # align to world
             direction = om.MVector(0, 1, 0)
 
-        elif self.node_state.state['align_to'] == 2: # align to obj's local
+        elif self.node_state.state['align_to'] == 'object': # align to obj's local
             # TODO - get object up vector
-            print 'align to obj'
             pass
 
-        elif self.node_state.state['align_to'] == 3\
-        or self.brush_state.align_mode: # align to stroke
-            direction = om.MVector(self.brush_state.direction[0],
-                                    self.brush_state.direction[1],
-                                    self.brush_state.direction[2])
+        elif self.node_state.state['align_to'] == 'stroke'\
+        or self.brush_state.meta_mod: # align to stroke
+            direction = om.MVector(self.brush_state.stroke_direction[0],
+                                    self.brush_state.stroke_direction[1],
+                                    self.brush_state.stroke_direction[2])
 
-        print 'direction:', direction.x, direction.y, direction.z, self.node_state.state['align_to']
+        else:
+            direction = normal
+
         return direction
 
 
@@ -411,26 +430,30 @@ class SporeToolCmd(ompx.MPxToolCommand):
         @param direction MVector: the target direction
         @param rotation MVector: current euler rotation """
 
-        #  dir_vector = self.get_alignment(normal)
-
-        mat = om.MTransformationMatrix()
-
-        util = om.MScriptUtil()
-        util.createFromDouble(rotation.x, rotation.y, rotation.z)
-        rotation_ptr = util.asDoublePtr()
-        mat.setRotation(rotation_ptr, om.MTransformationMatrix.kXYZ)
-
+        vector_weight = self.node_state.state['strength']
         up_vector = om.MVector(0, 1, 0)
         local_up = up_vector.rotateBy(om.MEulerRotation(math.radians(rotation.x),
                                                         math.radians(rotation.y),
                                                         math.radians(rotation.z)))
-        print 'localUp:', local_up.x, local_up.y, local_up.z
-        vector_weight = self.node_state.state['strength']
-        rotation = om.MQuaternion(direction, local_up, vector_weight)
-        #  mat.rotateBy(rotation, om.MSpace.kWorld)
-        #  mat.rotateTo(rotation) #, om.MSpace.kWorld)
 
-        mat = mat.asMatrix() * rotation.asMatrix()
+        if math.degrees(direction.angle(local_up)) <= 4: # 1 degree of rotation threashold
+            #  print 'localUp:', local_up.x, local_up.y, local_up.z
+            #  print 'retun:', direction.x, direction.y, direction.z, direction.angle(local_up)
+            return rotation
+
+        util = om.MScriptUtil()
+        util.createFromDouble(rotation.x, rotation.y, rotation.z)
+        rotation_ptr = util.asDoublePtr()
+        mat = om.MTransformationMatrix()
+        mat.setRotation(rotation_ptr, om.MTransformationMatrix.kXYZ)
+
+        rotation = om.MQuaternion(local_up, direction, vector_weight)
+
+        rotation = om.MQuaternion.slerp(mat.rotation, rotation, 1)
+        #  mat.rotateBy(rotation, om.MSpace.kWorld)
+        mat.rotateTo(rotation) #, om.MSpace.kWorld)
+
+        #  mat = mat.asMatrix() * rotation.asMatrix()
         #  rotation = mat.rotation()
         rotation = om.MTransformationMatrix(mat).rotation()
 
@@ -443,7 +466,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
         if length == 0:
             length = self.node_state.state['num_samples']
 
-        print 'set cache length: ', length
         self.position.setLength(length)
         self.scale.setLength(length)
         self.rotation.setLength(length)
@@ -472,7 +494,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         rotation = om.MQuaternion(world_up, dir_vector, vector_weight)
 
         # when we in drag mode we want to maintain old rotation values
-        if self.brush_state.drag_mode and flag != SporeToolCmd.k_click:
+        if self.brush_state.shift_mod and flag != SporeToolCmd.k_click:
             initial_rotation = self.initial_rotation[index]
 
         # otherwise we generate new values
@@ -504,8 +526,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
                         math.degrees(rotation.asEulerRotation().z))
 
     def get_scale(self, flag, index=0):
+        """ get scale values for the currently saved point at the given index """
+
         # when we in drag mode we want to maintain old scale values
-        if self.brush_state.drag_mode and flag != SporeToolCmd.k_click:
+        if self.brush_state.shift_mod and flag != SporeToolCmd.k_click:
             scale = self.initial_scale[index]
 
         # otherweise we generate new values
@@ -526,10 +550,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
         return scale
 
     def get_offset(self, position, normal, flag, index=0):
+        """ offset the given position along the given normal """
 
         min_offset = self.node_state.state['min_offset']
         max_offset = self.node_state.state['max_offset']
-        if self.brush_state.drag_mode and flag != SporeToolCmd.k_click:
+        if self.brush_state.shift_mod and flag != SporeToolCmd.k_click:
             initial_offset = self.initial_offset[index]
         else:
             initial_offset = random.uniform(min_offset, max_offset)
@@ -538,8 +563,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
         return position + normal * initial_offset
 
     def get_instance_id(self, flag, index=0):
+        """ the the instance id for the point at the given index """
+
         # when we in drag mode we want to maintain old instance id value
-        if self.brush_state.drag_mode and flag != SporeToolCmd.k_click:
+        if self.brush_state.shift_mod and flag != SporeToolCmd.k_click:
             instance_id = self.initial_id[index]
 
         else:
@@ -552,19 +579,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
     def initialize_tool_cmd(self, brush_state, node_state):
         """ must be called from the context setup method to
-        initialize the tool command with the current brush state.
-        commands that need nearest neighbour search should overload this method
-        with:
-        # self.node_state.build_kd_tree()
-        note: building the kd tree might take some time depending on the
-        number of points """
+        initialize the tool command with the current brush and node state. """
 
         self.brush_state = brush_state
         self.node_state = node_state
-
-        #  node_fn = node_utils.get_dgfn_from_dagpath(self.brush_state.node_name)
-        #  data_plug = node_fn.findPlug('instanceData')
-        #  self.node_state.initialize_from_plug(data_plug)
 
 
 """ -------------------------------------------------------------------- """
@@ -583,7 +601,6 @@ class SporeContext(ompx.MPxContext):
         self.node_state = None
         self.msg_io = message_utils.IOHandler()
         self.canvas = None
-        self.context_ctrl = None
         self.sender = Sender()
         self.tool_cmd = None
 
@@ -680,19 +697,11 @@ class SporeContext(ompx.MPxContext):
             self.canvas.update()
             del self.canvas
 
-        print K_TRACKING_DICTIONARY
-        #  self.tool_cmd.finalize()
-        #  print 'del hash'
-        #  del K_TRACKING_DICTIONARY[ompx.asHashable(self.tool_cmd)]
-        #  print 'del cmd'
-        #  del self.tool_cmd
-        #  self.tool_cmd = None
-        #  print K_TRACKING_DICTIONARY
-        #  self.tool_cmd.finalize()
 
     """ -------------------------------------------------------------------- """
     """ mouse events """
     """ -------------------------------------------------------------------- """
+
 
     @Slot(QPoint)
     def mouse_moved(self, position):
@@ -742,6 +751,8 @@ class SporeContext(ompx.MPxContext):
 
     @Slot(QPoint)
     def clicked(self, position):
+        """ clicked event """
+
         self.state.action = SporeToolCmd.k_click
 
         if self.state.draw and not self.state.modify_radius:
@@ -749,17 +760,21 @@ class SporeContext(ompx.MPxContext):
             self.sender.press.emit(state)
 
             self.node_state.get_node_state()
+
             #  instanciate the tool command
-            tool_cmd = self._newToolCommand()
-            print 'toolcmd: ', tool_cmd # spore_tool_cmd.SporeToolCmd.tracking_dir # .get(ompx.asHashable(tool_cmd))
-            self.tool_cmd = K_TRACKING_DICTIONARY.get(ompx.asHashable(tool_cmd))
-            self.tool_cmd.initialize_tool_cmd(self.state, self.node_state)
-            self.tool_cmd.redoIt()
+            self.create_tool_command()
+            if not self.state.meta_mod:
+                self.tool_cmd.redoIt()
 
 
     @Slot(QPoint)
     def dragged(self, position):
+        """ dragged event """
+
         self.state.action = SporeToolCmd.k_drag
+
+        if not self.tool_cmd:
+            self.create_tool_command()
 
         if self.state.draw:
             if self.state.modify_radius:
@@ -782,7 +797,12 @@ class SporeContext(ompx.MPxContext):
 
     @Slot(QPoint)
     def released(self, position):
+        """ released event """
+
         self.state.action = SporeToolCmd.k_release
+
+        if not self.tool_cmd:
+            self.create_tool_command()
 
         if self.state.draw and not self.state.modify_radius:
             state = self._get_state()
@@ -806,28 +826,36 @@ class SporeContext(ompx.MPxContext):
 
     @Slot()
     def ctrl_pressed(self):
-        pass
+        print 'ctrl on'
+        self.state.ctrl_mod = True
+        self.canvas.update()
 
     @Slot()
     def ctrl_released(self):
-        pass
+        print 'ctrl off'
+        self.state.ctrl_mod = False
+        self.canvas.update()
 
     @Slot()
     def meta_pressed(self):
-        pass
+        print 'meta on'
+        self.state.meta_mod = True
+        self.canvas.update()
 
     @Slot()
     def meta_released(self):
-        pass
+        print 'meta off'
+        self.state.meta_mod = False
+        self.canvas.update()
 
     @Slot()
     def shift_pressed(self):
-        self.state.drag_mode = True
+        self.state.shift_mod = True
         self.canvas.update()
 
     @Slot()
     def shift_released(self):
-        self.state.drag_mode = False
+        self.state.shift_mod = False
         self.canvas.update()
 
 
@@ -855,6 +883,8 @@ class SporeContext(ompx.MPxContext):
         return state
 
     def modify_radius(self):
+        """ modify the brush radius """
+
         delta_x = self.state.last_x - self.state.cursor_x
 
         view = window_utils.active_view()
@@ -870,6 +900,13 @@ class SporeContext(ompx.MPxContext):
         else:
             self.state.radius = 0.01
 
+    def create_tool_command(self):
+        """ create a new instance of the command associated with the context """
+
+        tool_cmd = self._newToolCommand()
+        #  print 'toolcmd: ', tool_cmd # spore_tool_cmd.SporeToolCmd.tracking_dir # .get(ompx.asHashable(tool_cmd))
+        self.tool_cmd = K_TRACKING_DICTIONARY.get(ompx.asHashable(tool_cmd))
+        self.tool_cmd.initialize_tool_cmd(self.state, self.node_state)
 
 
 """ -------------------------------------------------------------------- """

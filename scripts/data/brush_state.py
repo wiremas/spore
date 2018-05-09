@@ -30,12 +30,11 @@ class BrushState(object):
         self.first_x = float()
         self.last_x = float()
 
-        self.action = None
-        self.drag_mode = False # meta key
-        self.align_mode = False # shift key
-        self.steady_mode = False # shift + meta key
-        self.line_mode = False # ctrl key
+        self.shift_mod = False
+        self.meta_mod = False # shift key
+        self.ctrl_mod = False # ctrl key
 
+        self.action = None
         self.settings = {}
 
     #  @property
@@ -104,7 +103,7 @@ class BrushState(object):
                             self.tangent[2])
 
             # draw dragger shapes
-            if self.drag_mode:
+            if self.shift_mod:
                 pos_x, pos_y = self.world_to_view(pnt)
 
                 shapes = []

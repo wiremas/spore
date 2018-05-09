@@ -21,6 +21,7 @@ class SporeNode(ompx.MPxLocatorNode):
     # node attributes
     a_context_mode = om.MObject() # current mode of the context
     a_num_brush_samples = om.MObject()
+    a_falloff = om.MObject()
     a_min_distance = om.MObject()
     a_min_rotation = om.MObject()
     a_max_rotation =  om.MObject()
@@ -43,6 +44,7 @@ class SporeNode(ompx.MPxLocatorNode):
     a_min_pressure = om.MObject()
     a_max_pressure = om.MObject()
     a_cached = om.MObject()
+    a_num_spores = om.MObject()
 
     context = None
 
@@ -56,12 +58,10 @@ class SporeNode(ompx.MPxLocatorNode):
 
     @staticmethod
     def creator():
-        print 'create'
         return SporeNode()
 
     @classmethod
     def initialize(cls):
-        print 'initialize'
         generic_attr_fn = om.MFnGenericAttribute()
         typed_attr_fn = om.MFnTypedAttribute()
         enum_attr_fn = om.MFnEnumAttribute()
@@ -93,12 +93,11 @@ class SporeNode(ompx.MPxLocatorNode):
         enum_attr_fn.addField('scale', 2)
         enum_attr_fn.addField('align', 3)
         enum_attr_fn.addField('smooth', 4)
-        enum_attr_fn.addField('move', 5)
-        enum_attr_fn.addField('id', 6)
+        enum_attr_fn.addField('random', 5)
+        enum_attr_fn.addField('move', 6)
+        enum_attr_fn.addField('id', 7)
         enum_attr_fn.setStorable(False)
         enum_attr_fn.setKeyable(False)
-        #  enum_attr_fn.setReadable(False)
-        #  enum_attr_fn.setWritable(False)
         enum_attr_fn.setConnectable(False)
         cls.addAttribute(cls.context_mode)
 
@@ -108,7 +107,15 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
+        enum_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_num_brush_samples)
+
+        cls.a_falloff = enum_attr_fn.create('fallOff', 'fallOff', 1)
+        enum_attr_fn.addField('None', 0)
+        enum_attr_fn.addField('Linear', 1)
+        enum_attr_fn.setStorable(False)
+        enum_attr_fn.setKeyable(False)
+        cls.addAttribute(cls.a_falloff)
 
         cls.a_min_distance = numeric_attr_fn.create('minDistance', 'minDistance', om.MFnNumericData.kDouble, 0.1)
         numeric_attr_fn.setMin(0.001)
@@ -140,8 +147,8 @@ class SporeNode(ompx.MPxLocatorNode):
 
         cls.a_scale_factor = numeric_attr_fn.create('scaleFactor', 'scaleFactor', om.MFnNumericData.kDouble, 1)
         numeric_attr_fn.setMin(0.001)
-        numeric_attr_fn.setSoftMax(2)
-        #  numeric_attr_fn.setDefault(1.0)
+        numeric_attr_fn.setSoftMin(0.8)
+        numeric_attr_fn.setSoftMax(1.2)
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
@@ -166,16 +173,12 @@ class SporeNode(ompx.MPxLocatorNode):
         cls.addAttribute(cls.a_max_rotation )
 
         cls.a_min_offset = numeric_attr_fn.create('minOffset', 'minOffset', om.MFnNumericData.kInt, 0)
-        #  numeric_attr_fn.setSoftMin(-10)
-        #  numeric_attr_fn.setSoftMax(10)
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_min_offset )
 
         cls.a_max_offset = numeric_attr_fn.create('maxOffset', 'maxOffset', om.MFnNumericData.kInt, 0)
-        #  numeric_attr_fn.setSoftMin(-10)
-        #  numeric_attr_fn.setSoftMax(10)
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
@@ -250,7 +253,6 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_max_pressure )
 
-
         # node attributes - emit attributes
         cls.a_emit_type = enum_attr_fn.create('emitType', 'emitType', 0)
         enum_attr_fn.addField('random', 0)
@@ -297,7 +299,6 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_min_radius)
 
-
         # node attribute - dummy attributes
         cls.a_cached = numeric_attr_fn.create('cached', 'cached', om.MFnNumericData.kBoolean, 0)
         numeric_attr_fn.setStorable(False)
@@ -305,7 +306,12 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_cached)
 
-        #  cls.attributeAffects(cls.a_context_mode, cls.a_instance_data)
+        cls.a_num_spores = numeric_attr_fn.create('numSpores', 'numSpores', om.MFnNumericData.kInt, 1)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_num_spores)
+
         cls.attributeAffects(cls.a_emit, cls.a_instance_data)
 
     def __init__(self):
@@ -327,7 +333,7 @@ class SporeNode(ompx.MPxLocatorNode):
         #  self.callbacks.append(om.MDGMessage.addNodeAddedCallback(self.thisMObject(), self.node_added))
 
     def pre_destructor(self, *args):
-        print 'destruct', args
+        print '__del__', args
         for i in xrange(self.callbacks.length()):
             om.MMessage().removeCallback(self.callbacks[i])
 
@@ -350,10 +356,7 @@ class SporeNode(ompx.MPxLocatorNode):
         print 'compute'
 
         this_node = self.thisMObject()
-        #  in_mesh =
 
-        # TODO - Error:
-        # (kInvalidParameter): Object is incompatible with this method
         is_cached = data.inputValue(self.a_cached).asBool()
         if not is_cached:
             #  print 'CACHE!'
