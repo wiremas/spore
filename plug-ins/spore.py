@@ -13,12 +13,18 @@ from scripted import spore_context
 reload(spore_node)
 reload(spore_context)
 
-try:
-    import AEsporeNodeTemplate
-    reload (AEsporeNodeTemplate)
 
-except:
-    raise ImportError('Could not import sporeNode Attribute Editor ui')
+import AEsporeNodeTemplate
+reload (AEsporeNodeTemplate)
+from maya import mel
+mel.eval('refreshEditorTemplates;')
+#  try
+#      import AEsporeNodeTemplate
+#      reload (AEsporeNodeTemplate)
+#      from maya import mel
+#      mel.eval('refreshEditorTemplates;')
+#  except:
+#      raise ImportWarning('Could not import sporeNode Attribute Editor ui')
 
 def initializePlugin(mobject):
 
@@ -27,9 +33,9 @@ def initializePlugin(mobject):
     # TODO add menu!
     #  mplugin.addMenuItem("Instance Along Curve", "MayaWindow|mainEditMenu", kPluginCmdName, "")
 
-    #  pm.callbacks(addCallback=load_spore_template,
-    #               hook='provideAETemplateForNodeType',
-    #               owner='sporeNode')
+    pm.callbacks(addCallback=load_spore_template,
+                 hook='provideAETemplateForNodeType',
+                 owner=spore_node.SporeNode.name)
 
     try:
         mplugin.registerNode(spore_node.SporeNode.name,
@@ -57,9 +63,9 @@ def uninitializePlugin(mobject):
 
     mplugin = ompx.MFnPlugin(mobject)
 
-    #  pm.callbacks(removeCallback=load_spore_template,
-    #               hook='AETemplateCustomContent',
-    #               owner=spore_node.SporeNode.name)
+    pm.callbacks(removeCallback=load_spore_template,
+                 hook='AETemplateCustomContent',
+                 owner=spore_node.SporeNode.name)
 
     try:
         mplugin.deregisterContextCommand(spore_context.K_CONTEXT_NAME,
@@ -75,7 +81,16 @@ def uninitializePlugin(mobject):
         raise
 
 
-#  def load_spore_template(node_name):
-#      from spore.ui import AEsporeNodeTemplate
-#      ae_template = AEsporeNodeTemplate.AEsporeNodeTemplate(node_name[0])
-#      print 'NODE SPECIFIC AE', node_name[0], ae_template
+def load_spore_template(node_name):
+
+    print 'ae cb'
+    #  try:
+    import AEsporeNodeTemplate
+    reload (AEsporeNodeTemplate)
+    from maya import mel
+    mel.eval('refreshEditorTemplates;')
+
+    ae_template = AEsporeNodeTemplate.AEsporeNodeTemplate(node_name)
+    print ae_template
+    #  except:
+    #      raise ImportWarning('Could not import sporeNode Attribute Editor ui')
