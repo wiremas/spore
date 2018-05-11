@@ -1,6 +1,7 @@
 import sys
 
 import pymel.core as pm
+import maya.cmds as cmds
 import maya.OpenMaya as om
 import maya.OpenMayaMPx as ompx
 
@@ -19,10 +20,11 @@ mel.eval('refreshEditorTemplates;')
 
 
 MENU = None
-# add items   #Label                    #commande
-MENU_ITEMS = {'Spore':                  'import manager;reload(manager)',
-              'Create Spore Node':      '',
-              'Help':                   ''}
+# menu items   #Label                   #commande
+MENU_ITEMS = (('Spore',                 'import manager;reload(manager)'),
+              (None,                    None), # None is a separator
+              ('Create Spore Setup',    'cmds.spore()'),
+              ('Help',                  ''))
 
 
 def initializePlugin(mobject):
@@ -67,8 +69,11 @@ def initializePlugin(mobject):
         MENU = pm.menu('Spore', parent=main_wnd)
 
     # add menu items
-    for lbl, cmd in MENU_ITEMS.iteritems():
-        pm.menuItem(label=lbl, command=cmd, parent=MENU)
+    pm.menuItem(l='Spore', c='import manager;reload(manager)', parent=MENU)
+    pm.menuItem(divider=True)
+    pm.menuItem(l='Create Spore Setup', c='cmds.spore()', parent=MENU)
+    pm.menuItem(divider=True)
+    pm.menuItem(l='Help', c='print help', parent=MENU)
 
 def uninitializePlugin(mobject):
     """ uninitialize plugins in reverse order & delete menu """
