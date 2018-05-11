@@ -69,6 +69,7 @@ class SporeCommand(ompx.MPxCommand):
         matrix_plug_array = om.MPlugArray()
         for i in xrange(self.source.length()):
             dg_fn = om.MFnDagNode(self.source[i])
+            print dg_fn.name()
             matrix_plug = dg_fn.findPlug('matrix')
             matrix_plug_array.append(matrix_plug)
 
@@ -76,7 +77,7 @@ class SporeCommand(ompx.MPxCommand):
         self.m_dag_mod.connect(instance_data_plug, in_points_plug)
         self.m_dag_mod.connect(out_mesh_plug, in_mesh_plug)
         for i in xrange(matrix_plug_array.length()):
-            in_plug =in_hierarchy_plug.elementByLogicalIndex(i)
+            in_plug = in_hierarchy_plug.elementByLogicalIndex(i)
             self.m_dag_mod.connect(matrix_plug_array[i], in_plug)
 
         self.redoIt()
@@ -112,7 +113,7 @@ class SporeCommand(ompx.MPxCommand):
 
         for i in xrange(selection.length()):
             dag_path = om.MDagPath()
-            selection.getDagPath(0, dag_path)
+            selection.getDagPath(i, dag_path)
 
             # get target
             if i == 0:
