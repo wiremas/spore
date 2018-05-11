@@ -1,9 +1,3 @@
-"""
-the following "vocabulary" is uses:
-    "soil" - target surface
-    "spore" - sporeNode
-"""
-
 import os
 import sys
 import collections
@@ -14,15 +8,10 @@ import maya.OpenMaya as om
 
 from PySide2.QtCore import Slot, QObject
 
-try:
-    import numpy
-except ImportError:
-    raise ImportError('Could not import Numpy')
-
 print __name__, __file__
 
-from spore.ui import AEsporeNodeTemplate, manager_ui
-from spore.utils import node_utils
+import manager_ui
+import node_utils
 reload(manager_ui)
 
 
@@ -89,7 +78,7 @@ class SporeManager(object):
         selection = cmds.ls(sl=True, l=True)
 
         if len(selection) == 0:
-            #TODO - show some kind of dialog do add source and target
+            #TODO - show some kind of dialog to add source and target
             pass
 
         else:
@@ -104,19 +93,20 @@ class SporeManager(object):
 
             self.update_ui()
 
+print __name__
+if __name__ == 'manager':
 
-if __name__ == 'spore.manager':
+    #  spore_root = os.path.dirname(__file__)
+    print __file__
+    #  os.environ['SPORE_ROOT_DIR'] = spore_root
 
-    spore_root = os.path.dirname(__file__)
-    os.environ['SPORE_ROOT_DIR'] = spore_root
-
-    if not spore_root in sys.path:
-        sys.path.append(spore_root)
-
-
-    if not cmds.pluginInfo('spore_plugin', q=True, l=True):
-        cmds.loadPlugin(os.path.join(spore_root, 'plugins', 'spore_plugin.py'))
-
+    #  if not spore_root in sys.path:
+    #      sys.path.append(spore_root)
+    #
+    #
+    #  if not cmds.pluginInfo('spore_plugin', q=True, l=True):
+    #      cmds.loadPlugin(os.path.join(spore_root, 'plugins', 'spore_plugin.py'))
+    #
     global manager
     if not manager:
         manager = SporeManager()

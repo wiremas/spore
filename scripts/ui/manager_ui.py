@@ -3,7 +3,7 @@ from PySide2.QtWidgets import QSizePolicy
 from PySide2.QtCore import Signal, QObject, Qt
 from PySide2.QtGui import QPalette, QColor, QPixmap, QIcon
 
-#  from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
+from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 
 from maya import cmds
 
