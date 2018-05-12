@@ -140,13 +140,12 @@ class SporeToolCmd(ompx.MPxToolCommand):
                 self.scale_action(flag)
 
         elif self.node_state.state['mode'] == 'align': #'align'
-            self.align_action(flag)
-
-        elif slef.node_state.state['mode'] == 'smooth':
-            self.smooth_action(flag)
-
-        elif slef.node_state.state['mode'] == 'random':
-            self.randomize_action(flag)
+            if self.brush_state.shift_mod:
+                self.smooth_align_action(flag)
+            elif self.brush_state.meta_mod:
+                self.random_align_action(flag)
+            else:
+                self.align_action(flag)
 
         elif self.node_state.state['mode'] == 'move': #'move':
             self.move_action(flag)
@@ -204,7 +203,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.spray_coords = []
 
     """ -------------------------------------------------------------------- """
-    """ actions """
+    """ place """
     """ -------------------------------------------------------------------- """
 
     def place_action(self, flag):
@@ -293,6 +292,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
         # refresh set plug data and update view
         self.node_state.set_state()
 
+    """ ------------------------------------------------------- """
+    """ align """
+    """ ------------------------------------------------------- """
+
     def align_action(self, flag):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
@@ -331,6 +334,19 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         self.node_state.set_state()
 
+    def smooth_align_action(self, flag):
+        """ """
+
+        print 'Smooth align. Not implemented yet'
+
+    def random_align_action(self, flag):
+        """ """
+
+        print 'Randomize align. Not implemented yet'
+
+    """ ------------------------------------------------------- """
+    """ scale """
+    """ ------------------------------------------------------- """
 
     def scale_action(self, flag):
         position, normal, tangent = self.get_brush_coords()
@@ -339,11 +355,30 @@ class SporeToolCmd(ompx.MPxToolCommand):
         neighbour = self.node_state.get_closest_points(position, radius)
         self.set_cache_length(len(neighbour))
 
+        scale = []
         for i, index in enumerate(neighbour):
-            scale = self.node_state.scale[index]
+            value = self.node_state.scale[index]
             factor = self.node_state.state['scale_factor']
-            scale = scale * factor
+            scale.append(value * factor)
 
+        self.set_scale_values(scale)
+
+    def smooth_scale_action(self, flag):
+        """ """
+
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+        neighbour = self.node_state.get_closest_points(position, radius)
+        self.node_state.get_scale_average(neighbour)
+        print 'smooth scale'
+
+    def random_scale_action(self, flag):
+        print 'randomize scale'
+
+    def set_scale_values(self, scale)
+        """ set the given list of scale values """
+
+        for value in scale:
             self.position.set(self.node_state.position[index], i)
             self.scale.set(scale, i)
             self.rotation.set(self.node_state.rotation[index], i)
@@ -368,19 +403,19 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         self.node_state.set_state()
 
-    def smooth_scale_action(self, flag):
-        #  self.node_state.get_scale_average(neighbour)
-        print 'smooth scale'
-
-    def random_scale_action(self, flag):
-        print 'randomize scale'
+    """ ------------------------------------------------------- """
+    """ move """
+    """ ------------------------------------------------------- """
 
     def move_action(self, flag):
         print 'move'
 
+    """ ------------------------------------------------------- """
+    """ index """
+    """ ------------------------------------------------------- """
+
     def index_action(self, flag):
         print 'index'
-
 
     """ -------------------------------------------------------------------- """
     """ utils """
