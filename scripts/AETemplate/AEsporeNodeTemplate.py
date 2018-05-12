@@ -285,29 +285,26 @@ class AEsporeNodeTemplate(AETemplate):
         cmds.button('sprayBtn', l='Spray', c=pm.Callback(self.activateContext, 'spray', attr, 1))
         cmds.button('scaleBtn', l='Scale', c=pm.Callback(self.activateContext, 'scale', attr, 2))
         cmds.button('alignBtn', l='Align', c=pm.Callback(self.activateContext, 'align', attr, 3))
-        cmds.button('smoothBtn', l='Smooth', c=pm.Callback(self.activateContext, 'smooth', attr, 4))
-        cmds.button('randomBtn', l='Randomize', c=pm.Callback(self.activateContext, 'random', attr, 5))
-        cmds.button('moveBtn', l='Move', c=pm.Callback(self.activateContext, 'move', attr, 6))
-        cmds.button('idBtn', l='Id', c=pm.Callback(self.activateContext, 'id', attr, 7))
+        #  cmds.button('smoothBtn', l='Smooth', c=pm.Callback(self.activateContext, 'smooth', attr, 4))
+        #  cmds.button('randomBtn', l='Randomize', c=pm.Callback(self.activateContext, 'random', attr, 5))
+        cmds.button('moveBtn', l='Move', c=pm.Callback(self.activateContext, 'move', attr, 4))
+        cmds.button('idBtn', l='Id', c=pm.Callback(self.activateContext, 'id', attr, 5))
         cmds.setParent('..')
 
-        print 'build btns'
 
     def update_brush_btn(self, attr):
-        print 'update'
 
         cmds.button('placeBtn', e=True, c=pm.Callback(self.activateContext, 'place', attr, 0))
         cmds.button('sprayBtn', e=True, c=pm.Callback(self.activateContext, 'spray', attr, 1))
         cmds.button('scaleBtn', e=True, c=pm.Callback(self.activateContext, 'scale', attr, 2))
         cmds.button('alignBtn', e=True, c=pm.Callback(self.activateContext, 'align', attr, 3))
-        cmds.button('smoothBtn', e=True, c=pm.Callback(self.activateContext, 'smooth', attr, 4))
-        cmds.button('randomBtn', e=True, c=pm.Callback(self.activateContext, 'random', attr, 5))
-        cmds.button('moveBtn', e=True, c=pm.Callback(self.activateContext, 'move', attr, 6))
-        cmds.button('idBtn', e=True, c=pm.Callback(self.activateContext, 'id', attr, 7))
+        #  cmds.button('smoothBtn', e=True, c=pm.Callback(self.activateContext, 'smooth', attr, 4))
+        #  cmds.button('randomBtn', e=True, c=pm.Callback(self.activateContext, 'random', attr, 5))
+        cmds.button('moveBtn', e=True, c=pm.Callback(self.activateContext, 'move', attr, 4))
+        cmds.button('idBtn', e=True, c=pm.Callback(self.activateContext, 'id', attr, 5))
 
         self._node = attr.split('.')[0]
 
-        print 'update btns'
 
     def activateContext(self, context_mode, attr, index):
         """ called whenever a brush button is clicked
@@ -316,7 +313,6 @@ class AEsporeNodeTemplate(AETemplate):
         @param attr: holds the current node and attribute name
         @param index: the index of the child attr in the combobox """
 
-        print 'brrra:', context_mode, attr, index
         cmds.setAttr(attr, index)
         attr_name = attr.split('.')[-1]
         node_name = attr.split('.')[0]
@@ -334,8 +330,8 @@ class AEsporeNodeTemplate(AETemplate):
                     'spray':            (True,  False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
                     'scale':            (False, True,   False,  False,  False,  False,  False,  False,  False,  False,  True ,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
                     'align':            (False, True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'smooth':           (False, True,   True,   False,  False,  False,  False,  False,  False,  False,  True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'random':           (False, True,   True,   False,  False,  False,  False,  False,  False,  False,  True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    #  'smooth':           (False, True,   True,   False,  False,  False,  False,  False,  False,  False,  True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    #  'random':           (False, True,   True,   False,  False,  False,  False,  False,  False,  False,  True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
                     'move':             (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
                     'id':               (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   False,  False,  p_map,  p_map),
                     }
@@ -351,7 +347,7 @@ class AEsporeNodeTemplate(AETemplate):
                 #  mel.eval('editorTemplate -suppress "{}";'.format(crtl))
                 #  self.suppress(crtl)
 
-        print 'CONTEXT: ', self.context
+        #  print 'CONTEXT: ', self.context
         #  if self.context is None:
         self.context = cmds.sporeContext()
 
