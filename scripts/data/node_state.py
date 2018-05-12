@@ -72,7 +72,7 @@ class SporeState(object):
 
 
     def get_node_state(self):
-        modes = ['place', 'spray', 'scale', 'align', 'smooth', 'random', 'move', 'id']
+        modes = ['place', 'spray', 'scale', 'align', 'move', 'id']
         mode_id = cmds.getAttr('{}.contextMode'.format(self.node))
         align_modes = ['normal', 'world', 'object', 'stroke']
         align_id = cmds.getAttr('{}.alignTo'.format(self.node))
@@ -118,6 +118,75 @@ class SporeState(object):
         :return mObject: """
 
         return self.data_object
+
+
+    def append_points(self, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
+
+        appended_ids = om.MIntArray()
+        for i in xrange(position.length()):
+            self.position.append(position[i])
+            self.scale.append(scale[i])
+            self.rotation.append(rotation[i])
+            self.instance_id.append(instance_id[i])
+            self.normal.append(normal[i])
+            self.tangent.append(tangent[i])
+            self.u_coord.append(u_coord[i])
+            self.v_coord.append(v_coord[i])
+            self.poly_id.append(poly_id[i])
+            self.color.append(color[i])
+
+            # append position to numpy array
+            np_position = [[position[i].x, position[i].y, position[i].z]]
+            self.np_position = np.append(self.np_position, np_position, axis=0)
+
+            self.unique_id.append(self.position.length() - 1)
+            appended_ids.append(self.position.length() - 1)
+
+        return appended_ids
+
+
+    def set_points(self, index, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
+        for i in xrange(position.length()):
+            print 'set point:', index[i]
+            self.position.set(position[i], index[i])
+            self.scale.set(scale[i], index[i])
+            self.rotation.set(rotation[i], index[i])
+            self.instance_id.set(instance_id[i], index[i])
+            self.normal.set(normal[i], index[i])
+            self.tangent.set(tangent[i], index[i])
+            self.u_coord.set(u_coord[i], index[i])
+            self.v_coord.set(v_coord[i], index[i])
+            self.poly_id.set(poly_id[i], index[i])
+            self.color.set(color[i], index[i])
+
+            self.np_position.itemset((index[i], 0), position[i].x)
+            self.np_position.itemset((index[i], 1), position[i].y)
+            self.np_position.itemset((index[i], 2), position[i].z)
+
+    def set_point(self, index, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
+
+        # TODO - check if index is out of bounds
+        if isinstance(position, om.MPoint):
+            position = om.MVector(position.x, position.y, position.z)
+
+        self.position.set(position, index)
+        self.scale.set(scale, index)
+        self.rotation.set(rotation, index)
+        self.instance_id.set(instance_id, index)
+
+        self.normal.set(normal, index)
+        self.tangent.set(tangent, index)
+
+        self.u_coord.set(u_coord, index)
+        self.v_coord.set(v_coord, index)
+        self.poly_id.set(poly_id, index)
+        self.color.set(color, index)
+
+        # TODO - set as tuple
+        #  self.np_position[index] = [position.x, position.y, position.z]
+
+        self.unique_id.set(index + 1, index)
+
 
     def append_point(self, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
         """ append a new point to the cache """
@@ -217,96 +286,36 @@ class SporeState(object):
         return unique_id
 
 
-    def append_points(self, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
-
-        appended_ids = om.MIntArray()
-        for i in xrange(position.length()):
-            self.position.append(position[i])
-            self.scale.append(scale[i])
-            self.rotation.append(rotation[i])
-            self.instance_id.append(instance_id[i])
-            self.normal.append(normal[i])
-            self.tangent.append(tangent[i])
-            self.u_coord.append(u_coord[i])
-            self.v_coord.append(v_coord[i])
-            self.poly_id.append(poly_id[i])
-            self.color.append(color[i])
-
-            # append position to numpy array
-            np_position = [[position[i].x, position[i].y, position[i].z]]
-            self.np_position = np.append(self.np_position, np_position, axis=0)
-
-            self.unique_id.append(self.position.length() - 1)
-            appended_ids.append(self.position.length() - 1)
-
-        return appended_ids
-
-
-    def set_points(self, index, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
-        for i in xrange(position.length()):
-            print 'set point:', index[i]
-            self.position.set(position[i], index[i])
-            self.scale.set(scale[i], index[i])
-            self.rotation.set(rotation[i], index[i])
-            self.instance_id.set(instance_id[i], index[i])
-            self.normal.set(normal[i], index[i])
-            self.tangent.set(tangent[i], index[i])
-            self.u_coord.set(u_coord[i], index[i])
-            self.v_coord.set(v_coord[i], index[i])
-            self.poly_id.set(poly_id[i], index[i])
-            self.color.set(color[i], index[i])
-
-            self.np_position.itemset((index[i], 0), position[i].x)
-            self.np_position.itemset((index[i], 1), position[i].y)
-            self.np_position.itemset((index[i], 2), position[i].z)
-
-    def set_point(self, index, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
-
-        # TODO - check if index is out of bounds
-        if isinstance(position, om.MPoint):
-            position = om.MVector(position.x, position.y, position.z)
-
-        self.position.set(position, index)
-        self.scale.set(scale, index)
-        self.rotation.set(rotation, index)
-        self.instance_id.set(instance_id, index)
-
-        self.normal.set(normal, index)
-        self.tangent.set(tangent, index)
-
-        self.u_coord.set(u_coord, index)
-        self.v_coord.set(v_coord, index)
-        self.poly_id.set(poly_id, index)
-        self.color.set(color, index)
-
-        # TODO - set as tuple
-        #  self.np_position[index] = [position.x, position.y, position.z]
-
-        self.unique_id.set(index + 1, index)
-
-
-
     def length(self):
         # TODO - do some checking if all the array are the same length?
-
         return self.position.length()
 
     def get_scale_average(self, index):
+        """ get the average scale value for the given list of indexes
+        @param index list: list of indexes
+        @return x, y, z scale mean """
 
         scale_values = np.empty((0,3), float)
         for i in index:
-            np.append(scale_values, [[self.scale[i].x,
-                                      self.scale[i].y,
-                                      self.scale[i].z]], axis=0)
+            scale_values = np.append(scale_values, [[self.scale[i].x,
+                                                     self.scale[i].y,
+                                                     self.scale[i].z]],
+                                     axis=0)
 
         scale_mean = np.mean(scale_values, axis=0)
-        print scale_values, scale_mean
+        return scale_mean
 
     def get_closest_points(self, position, radius):
+        """ get a list of all indexes within the given radius from the
+        given position """
+
         if isinstance(position, om.MPoint):
             position = (position.x, position.y, position.z)
         neighbours = self.tree.query_ball_point(position, radius)
-        return neighbours
+        return list(neighbours)
+
+    def __len__(self):
+        return self.position.length()
 
     def __iter__(self):
         for i in xrange(self.position.length()):
@@ -323,7 +332,6 @@ class SporeState(object):
                      'unique_id': self.unique_id[i]}
 
             yield point
-
 
     def __del__(self):
         print 'del ptc'
