@@ -87,6 +87,7 @@ class SporeState(object):
                       'min_scale': cmds.getAttr('{}.minScale'.format(self.node))[0],
                       'max_scale': cmds.getAttr('{}.maxScale'.format(self.node))[0],
                       'scale_factor': cmds.getAttr('{}.scaleFactor'.format(self.node)),
+                      'scale_amount': cmds.getAttr('{}.scaleAmount'.format(self.node)),
                       'min_offset': cmds.getAttr('{}.minOffset'.format(self.node)),
                       'max_offset': cmds.getAttr('{}.maxOffset'.format(self.node)),
                       'min_id': cmds.getAttr('{}.minId'.format(self.node)),
@@ -111,7 +112,7 @@ class SporeState(object):
         view = window_utils.active_view()
         view.refresh(True, False)
 
-        print '{} instances place'.format(self.position.length())
+        #  print '{} instances place'.format(self.position.length())
 
     def get_data_object(self):
         """ return the mObject containing instanceData attribute
@@ -145,23 +146,84 @@ class SporeState(object):
         return appended_ids
 
 
-    def set_points(self, index, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
-        for i in xrange(position.length()):
-            print 'set point:', index[i]
-            self.position.set(position[i], index[i])
-            self.scale.set(scale[i], index[i])
-            self.rotation.set(rotation[i], index[i])
-            self.instance_id.set(instance_id[i], index[i])
-            self.normal.set(normal[i], index[i])
-            self.tangent.set(tangent[i], index[i])
-            self.u_coord.set(u_coord[i], index[i])
-            self.v_coord.set(v_coord[i], index[i])
-            self.poly_id.set(poly_id[i], index[i])
-            self.color.set(color[i], index[i])
+    def set_points(self, index, position=None, scale=None, rotation=None,
+                   instance_id=None, normal=None, tangent=None, u_coord=None,
+                   v_coord=None, poly_id=None, color=None):
+        """ set points identified by the given index for the given array(s)
+        :param index list: list in indexes to set
+        :param position MVectorArray: array of position data
+        :param scalae MVectorArray:
+        :param rotation MVectorArray:
+        :param instance_id MIntArray
+        :param normal MVectorArray
+        :param tangent MVectorArray
+        :param u_coord MDoubleArray
+        :param v_coord MDoubleArray
+        :param poly_id MIntArray
+        :param color MVectorArray """
 
-            self.np_position.itemset((index[i], 0), position[i].x)
-            self.np_position.itemset((index[i], 1), position[i].y)
-            self.np_position.itemset((index[i], 2), position[i].z)
+        # check input
+        try:
+            if position:
+                assert len(index) == position.length()
+                length = position.length()
+            if scale:
+                assert len(index) == scale.length()
+                length = scale.length()
+            if rotation:
+                assert len(index) == rotation.length()
+                length = rotation.length()
+            if instance_id:
+                assert len(index) == instance_id.length()
+                length = instance_id.length()
+            if normal:
+                assert len(index) == normal.length()
+                length = normal.length()
+            if tangent:
+                assert len(index) == tangent.length()
+                length = tangent.length()
+            if u_coord:
+                assert len(index) == u_coord.length()
+                length = u_coord.length()
+            if v_coord:
+                assert len(index) == v_coord.length()
+                length = v_coord.length()
+            if poly_id:
+                assert len(index) == poly_id.length()
+                length = poly_id.length()
+            if color:
+                assert len(index) == color.length()
+                length = color.length()
+        except AssertionError:
+            raise RuntimeError('Could not set point: input array length does not match')
+
+        # set points
+        for i in xrange(length):
+            if position:
+                self.position.set(position[i], index[i])
+                self.np_position.itemset((index[i], 0), position[i].x)
+                self.np_position.itemset((index[i], 1), position[i].y)
+                self.np_position.itemset((index[i], 2), position[i].z)
+            if scale:
+                self.scale.set(scale[i], index[i])
+            if rotation:
+                self.rotation.set(rotation[i], index[i])
+            if instance_id:
+                self.instance_id.set(instance_id[i], index[i])
+            if normal:
+                self.normal.set(normal[i], index[i])
+            if tangent:
+                self.tangent.set(tangent[i], index[i])
+            if u_coord:
+                self.u_coord.set(u_coord[i], index[i])
+            if v_coord:
+                self.v_coord.set(v_coord[i], index[i])
+            if poly_id:
+                self.poly_id.set(poly_id[i], index[i])
+            if color:
+                assert len(index) == color.length()
+                self.color.set(color[i], index[i])
+
 
     def set_point(self, index, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
 
