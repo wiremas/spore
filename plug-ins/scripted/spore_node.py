@@ -29,6 +29,7 @@ class SporeNode(ompx.MPxLocatorNode):
     a_max_scale = om.MObject()
     a_scale_factor = om.MObject()
     a_uniform_scale = om.MObject()
+    a_scale_amount = om.MObject()
     a_min_offset = om.MObject()
     a_max_offset = om.MObject()
     a_min_id = om.MObject()
@@ -153,6 +154,14 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_scale_factor)
+
+        cls.a_scale_amount = numeric_attr_fn.create('scaleAmount', 'scaleAmount', om.MFnNumericData.kDouble, 0.1)
+        numeric_attr_fn.setMin(0)
+        numeric_attr_fn.setMax(1)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_scale_amount)
 
         cls.a_min_rotation = numeric_attr_fn.createPoint('minRotation', 'minRotation')
         numeric_attr_fn.setMin(-360, -360, -360)
