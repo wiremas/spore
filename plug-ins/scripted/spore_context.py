@@ -1,7 +1,7 @@
 import math
 import random
 
-from abc import ABCMeta, abstractmethod
+import numpy as np
 
 import maya.cmds as cmds
 import maya.OpenMaya as om
@@ -122,7 +122,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
                          '.format(K_TOOL_CMD_NAME))
 
         return
-
 
     def redoIt(self):
         flag = self.brush_state.action
@@ -359,7 +358,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         for i, index in enumerate(neighbour):
             value = self.node_state.scale[index]
             factor = self.node_state.state['scale_factor']
-            scale.append(value * factor)
+            scale.append((index, value * factor))
 
         self.set_scale_values(scale)
 
@@ -369,38 +368,44 @@ class SporeToolCmd(ompx.MPxToolCommand):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
         neighbour = self.node_state.get_closest_points(position, radius)
-        self.node_state.get_scale_average(neighbour)
-        print 'smooth scale'
+        self.set_cache_length(len(neighbour))
+        average = self.node_state.get_scale_average(neighbour)
+        amount = self.node_state.state['scale_amount']
+
+        scale = []
+        for i, index in enumerate(neighbour):
+            value = self.node_state.scale[index]
+            value = [value.x, value.y, value.z]
+            delta = np.subtract(average, value)
+            step = np.multiply(delta, amount)
+            new_scale = np.add(value, step)
+            # TODO - uniform scale
+            value = om.MVector(new_scale[0], new_scale[1], new_scale[2])
+            scale.append((index, value))
+
+        self.node_state.set_points(neighbour, scale=self.scale)
+        self.node_state.set_state()
 
     def random_scale_action(self, flag):
-        print 'randomize scale'
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+        neighbour = self.node_state.get_closest_points(position, radius)
+        self.set_cache_length(len(neighbour))
+        amount = self.node_state.state['scale_amount']
 
-    def set_scale_values(self, scale)
-        """ set the given list of scale values """
+        for i, index in enumerate(neighbour):
+            value = self.node_state.scale[index]
+            value = [value.x, value.y, value.z]
+            # get rand scale, rand * 2 -1 to distribute evenly between -1 and +1
+            if self.node_state.state['uni_scale']:
+                step = np.multiply(np.multiply(np.ones(3), np.random.rand() * 2 - 1), amount)
+            else:
+                step = np.multiply(np.minus(np.multiply(np.sample(3), 2), 1), amount)
+            new_scale = np.add(value, step)
+            value = om.MVector(new_scale[0], new_scale[1], new_scale[2])
+            self.scale.set(value, i)
 
-        for value in scale:
-            self.position.set(self.node_state.position[index], i)
-            self.scale.set(scale, i)
-            self.rotation.set(self.node_state.rotation[index], i)
-            self.instance_id.set(self.node_state.instance_id[index], i)
-            self.normal.set(self.node_state.normal[index], i)
-            self.tangent.set(self.node_state.tangent[index], i)
-            self.u_coord.set(self.node_state.u_coord[index], i)
-            self.v_coord.set(self.node_state.v_coord[index], i)
-            self.poly_id.set(self.node_state.poly_id[index], i)
-
-        self.node_state.set_points(neighbour,
-                                self.position,
-                                self.scale,
-                                self.rotation,
-                                self.instance_id,
-                                self.normal,
-                                self.tangent,
-                                self.u_coord,
-                                self.v_coord,
-                                self.poly_id,
-                                self.color)
-
+        self.node_state.set_points(neighbour, scale=self.scale)
         self.node_state.set_state()
 
     """ ------------------------------------------------------- """
@@ -415,7 +420,23 @@ class SporeToolCmd(ompx.MPxToolCommand):
     """ ------------------------------------------------------- """
 
     def index_action(self, flag):
-        print 'index'
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+        neighbour = self.node_state.get_closest_points(position, radius)
+        self.set_cache_length(len(neighbour))
+        min_id = self.node_state.state['min_id']
+        max_id = self.node_state.state['max_id']
+
+        for i, index in enumerate(neighbour):
+            if min_id == max_id:
+                new_id = min_id
+            else:
+                new_id = np.random.randint(min_id, max_id)
+            self.instance_id.set(new_id, i)
+
+        self.node_state.set_points(neighbour, instance_id=self.instance_id)
+        self.node_state.set_state()
+
 
     """ -------------------------------------------------------------------- """
     """ utils """
