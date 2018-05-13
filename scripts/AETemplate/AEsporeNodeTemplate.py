@@ -150,6 +150,7 @@ class AEsporeNodeTemplate(AETemplate):
         self.addControl('minScale', label='Min Scale')
         self.addControl('maxScale', label='Max Scale')
         self.addControl('scaleFactor', label='Scale Factor')
+        self.addControl('scaleAmount', label='Randomize / Smooth')
         self.dimControl(self._node, 'scaleFactor', True)
         self.addSeparator()
         self.addControl('minOffset', label='Min Offset')
@@ -319,33 +320,26 @@ class AEsporeNodeTemplate(AETemplate):
 
         # create a tuple of all controls and a dict that associates each control
         # to a specific context style
-        self.brush_crtls = ('minDistance', 'falloff', 'strength', 'numBrushSamples',
-                            'alignTo', 'minRotation', 'maxRotation',
-                            'uniformScale', 'minScale', 'maxScale', 'scaleFactor', 'minOffset',
-                            'maxOffset', 'minId', 'maxId', 'usePressureMapping',
-                            'pressureMapping', 'minPressure', 'maxPressure')
+        brush_crtls = ('minDistance', 'fallOff', 'strength',
+                       'numBrushSamples', 'alignTo', 'minRotation',
+                       'maxRotation', 'uniformScale', 'minScale',
+                       'maxScale', 'scaleFactor', 'scaleAmount',
+                       'minOffset', 'maxOffset', 'minId', 'maxId',
+                       'usePressureMapping', 'pressureMapping',
+                       'minPressure', 'maxPressure')
         p_map = cmds.getAttr('{}.usePressureMapping'.format(self._node))
-        dim_crtl = {                #    minD,  foff,   stren,  numS,   aliTo   minR,   maxR,   uniS    minS,   maxS,   sFac    ,minO,   maxO,   minI,   maxI,   pre,    map,    minP,   maxP
-                    'place':            (True,  False,  True,   False,  True,   True,   True,   True,   True,   True,   False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
-                    'spray':            (True,  False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
-                    'scale':            (False, True,   False,  False,  False,  False,  False,  False,  False,  False,  True ,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'align':            (False, True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    #  'smooth':           (False, True,   True,   False,  False,  False,  False,  False,  False,  False,  True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    #  'random':           (False, True,   True,   False,  False,  False,  False,  False,  False,  False,  True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'move':             (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'id':               (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   False,  False,  p_map,  p_map),
+        dim_ctrl = {                #    minD,  foff,   stren,  numS,   aliTo   minR,   maxR,   uniS    minS,   maxS,   sFac,   sAmou,  minO,   maxO,   minI,   maxI,   pre,    map,    minP,   maxP
+                    'place':            (True,  False,  True,   False,  True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
+                    'spray':            (True,  False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
+                    'scale':            (False, True,   False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    'align':            (False, True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    'move':             (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    'id':               (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   True,   False,  p_map,  p_map),
                     }
 
         #  dim controls
-        for i, crtl in enumerate(self.brush_crtls):
-            self.dimControl(node_name, crtl, not dim_crtl[context_mode][i])
-
-        #  for i, crtl in enumerate(self.brush_crtls):
-        #      if not dim_crtl[context_mode][i]:
-        #          print 'suppress: ', crtl
-                #  cmds.editorTemplate(suppress=crtl)
-                #  mel.eval('editorTemplate -suppress "{}";'.format(crtl))
-                #  self.suppress(crtl)
+        for i, ctrl in enumerate(brush_crtls):
+            self.dimControl(node_name, ctrl, not dim_ctrl[context_mode][i])
 
         #  print 'CONTEXT: ', self.context
         #  if self.context is None:
@@ -427,18 +421,18 @@ class AEsporeNodeTemplate(AETemplate):
     # utils
     # ------------------------------------------------------------------------ #
 
-    def dim_controls(self, *args):
-        """ dim / undim all brush controls
-        :param dim: bool if we dim or undim the controls """
-        dim = True
-        print 'args', args
-
-        for crtl in self.brush_crtls:
-            #  self.suppress(crtl)
-            #  print 'dim: ', self._node, crtl, dim
-            self.dimControl(self._node, crtl, dim)
-
-
+    #  def dim_controls(self, *args):
+    #      """ dim / undim all brush controls
+    #      :param dim: bool if we dim or undim the controls """
+    #      dim = True
+    #      print 'args', args
+    #
+    #      for crtl in self.brush_crtls:
+    #          #  self.suppress(crtl)
+    #          #  print 'dim: ', self._node, crtl, dim
+    #          self.dimControl(self._node, crtl, dim)
+    #
+    #
 
 def get_nav_layout():
 
