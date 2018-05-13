@@ -126,6 +126,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def redoIt(self):
         flag = self.brush_state.action
 
+        if self.brush_state.meta_mod and self.brush_state.shift_mod:
+            print 'delete'
+            self.delete_action(flag)
+
         if self.node_state.state['mode'] == 'place'\
         or self.node_state.state['mode'] == 'spray': #'place':
             self.place_action(flag)
@@ -298,45 +302,38 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def align_action(self, flag):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-
         neighbour = self.node_state.get_closest_points(position, radius)
         self.set_cache_length(len(neighbour))
+
         for i, index in enumerate(neighbour):
             rotation = self.node_state.rotation[index]
-            print 'init rotation', rotation.x, rotation.y, rotation.z
             normal = self.node_state.normal[index]
             direction = self.get_alignment(normal)
             rotation = self.rotate_into(direction, rotation)
-
-            #  print self.node_state.position[index], i, self.position.length()
-            self.position.set(self.node_state.position[index], i)
-            self.scale.set(self.node_state.scale[index], i)
             self.rotation.set(rotation, i)
-            self.instance_id.set(self.node_state.instance_id[index], i)
-            self.normal.set(normal, i)
-            self.tangent.set(self.node_state.tangent[index], i)
-            self.u_coord.set(self.node_state.u_coord[index], i)
-            self.v_coord.set(self.node_state.v_coord[index], i)
-            self.poly_id.set(self.node_state.poly_id[index], i)
 
-        self.node_state.set_points(neighbour,
-                                self.position,
-                                self.scale,
-                                self.rotation,
-                                self.instance_id,
-                                self.normal,
-                                self.tangent,
-                                self.u_coord,
-                                self.v_coord,
-                                self.poly_id,
-                                self.color)
-
+        self.node_state.set_points(neighbour, rotation=self.rotation)
         self.node_state.set_state()
 
     def smooth_align_action(self, flag):
         """ """
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+        neighbour = self.node_state.get_closest_points(position, radius)
+        average = self.node_state.get_rotation_average(neighbour)
+        average = om.MVector(average[0], average[1], average[2])
+        self.set_cache_length(len(neighbour))
 
-        print 'Smooth align. Not implemented yet'
+        for i, index in enumerate(neighbour):
+            rotation = self.node_state.rotation[index]
+            normal = self.node_state.normal[index]
+            direction = self.get_alignment(normal)
+            rotation = self.rotate_into(average, rotation)
+            self.rotation.set(rotation, i)
+
+        self.node_state.set_points(neighbour, rotation=self.rotation)
+        self.node_state.set_state()
+
 
     def random_align_action(self, flag):
         """ """
@@ -354,13 +351,13 @@ class SporeToolCmd(ompx.MPxToolCommand):
         neighbour = self.node_state.get_closest_points(position, radius)
         self.set_cache_length(len(neighbour))
 
-        scale = []
         for i, index in enumerate(neighbour):
             value = self.node_state.scale[index]
             factor = self.node_state.state['scale_factor']
-            scale.append((index, value * factor))
+            self.scale.set(value * factor, i)
 
-        self.set_scale_values(scale)
+        self.node_state.set_points(neighbour, scale=self.scale)
+        self.node_state.set_state()
 
     def smooth_scale_action(self, flag):
         """ """
@@ -372,7 +369,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
         average = self.node_state.get_scale_average(neighbour)
         amount = self.node_state.state['scale_amount']
 
-        scale = []
         for i, index in enumerate(neighbour):
             value = self.node_state.scale[index]
             value = [value.x, value.y, value.z]
@@ -381,7 +377,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
             new_scale = np.add(value, step)
             # TODO - uniform scale
             value = om.MVector(new_scale[0], new_scale[1], new_scale[2])
-            scale.append((index, value))
+            self.scale.set(value, i)
 
         self.node_state.set_points(neighbour, scale=self.scale)
         self.node_state.set_state()
@@ -431,12 +427,21 @@ class SporeToolCmd(ompx.MPxToolCommand):
             if min_id == max_id:
                 new_id = min_id
             else:
-                new_id = np.random.randint(min_id, max_id)
+                new_id = np.random.randint(min_id, max_id + 1)
             self.instance_id.set(new_id, i)
 
         self.node_state.set_points(neighbour, instance_id=self.instance_id)
         self.node_state.set_state()
 
+    """ ------------------------------------------------------- """
+    """ index """
+    """ ------------------------------------------------------- """
+
+    def delete_action(self, flag):
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+        neighbours = self.node_state.get_closest_points(position, radius)
+        self.node_state.delete_points(neighbours)
 
     """ -------------------------------------------------------------------- """
     """ utils """
@@ -492,24 +497,28 @@ class SporeToolCmd(ompx.MPxToolCommand):
                                                         math.radians(rotation.y),
                                                         math.radians(rotation.z)))
 
-        if math.degrees(direction.angle(local_up)) <= 4: # 1 degree of rotation threashold
-            #  print 'localUp:', local_up.x, local_up.y, local_up.z
-            #  print 'retun:', direction.x, direction.y, direction.z, direction.angle(local_up)
-            return rotation
+        #  print 'localUp:', local_up.x, local_up.y, local_up.z
+        #  print 'retun:', direction.x, direction.y, direction.z, direction.angle(local_up)
+        #  if math.degrees(direction.angle(local_up)) <= 0.5: # 1 degree of rotation threashold
+        #      return rotation
+
+        target_rotation = om.MQuaternion(local_up, direction, vector_weight)
 
         util = om.MScriptUtil()
-        util.createFromDouble(rotation.x, rotation.y, rotation.z)
+        x_rot = np.radians(rotation.x)
+        y_rot = np.radians(rotation.y)
+        z_rot = np.radians(rotation.z)
+        util.createFromDouble(x_rot, y_rot, z_rot)
         rotation_ptr = util.asDoublePtr()
         mat = om.MTransformationMatrix()
         mat.setRotation(rotation_ptr, om.MTransformationMatrix.kXYZ)
 
-        rotation = om.MQuaternion(local_up, direction, vector_weight)
 
-        rotation = om.MQuaternion.slerp(mat.rotation, rotation, 1)
+        #  rotation = om.MQuaternion.slerp(mat.rotation, rotation, 1)
         #  mat.rotateBy(rotation, om.MSpace.kWorld)
-        mat.rotateTo(rotation) #, om.MSpace.kWorld)
+        #  mat.rotateTo(rotation) #, om.MSpace.kWorld)
 
-        #  mat = mat.asMatrix() * rotation.asMatrix()
+        mat = mat.asMatrix() * target_rotation.asMatrix()
         #  rotation = mat.rotation()
         rotation = om.MTransformationMatrix(mat).rotation()
 
