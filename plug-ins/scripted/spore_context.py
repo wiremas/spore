@@ -81,6 +81,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.scale = om.MVectorArray()
         self.rotation = om.MVectorArray()
         self.instance_id = om.MIntArray()
+        self.visibility = om.MIntArray()
         self.normal = om.MVectorArray()
         self.tangent = om.MVectorArray()
         self.u_coord = om.MDoubleArray()
@@ -126,10 +127,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def redoIt(self):
         flag = self.brush_state.action
 
-        if self.brush_state.meta_mod and self.brush_state.shift_mod:
-            print 'delete'
-            self.delete_action(flag)
-
         if self.node_state.state['mode'] == 'place'\
         or self.node_state.state['mode'] == 'spray': #'place':
             self.place_action(flag)
@@ -155,6 +152,9 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         elif self.node_state.state['mode'] == 'id': #'index':
             self.index_action(flag)
+
+        elif self.node_state.state['mode'] == 'remove':
+            self.delete_action(flag)
 
     def undoIt(self):
         print 'undoIt', self.last_undo_journal
@@ -191,6 +191,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.scale = om.MVectorArray()
         self.rotation = om.MVectorArray()
         self.instance_id = om.MIntArray()
+        self.visibility = om.MIntArray()
         self.normal = om.MVectorArray()
         self.tangent = om.MVectorArray()
         self.u_coord = om.MDoubleArray()
@@ -259,6 +260,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
             self.rotation.set(rotation, i)
             self.scale.set(scale, i)
             self.instance_id.set(instance_id, i)
+            self.visibility.set(1, i)
             self.normal.set(normal, i)
             self.tangent.set(tangent, i)
             self.u_coord.set(u_coord, i)
@@ -273,6 +275,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
                                     self.scale,
                                     self.rotation,
                                     self.instance_id,
+                                    self.visibility,
                                     self.normal,
                                     self.tangent,
                                     self.u_coord,
@@ -285,6 +288,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
                                         self.scale,
                                         self.rotation,
                                         self.instance_id,
+                                        self.visibility,
                                         self.normal,
                                         self.tangent,
                                         self.u_coord,
@@ -327,7 +331,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         for i, index in enumerate(neighbour):
             rotation = self.node_state.rotation[index]
             normal = self.node_state.normal[index]
-            direction = self.get_alignment(normal)
+            #  direction = self.get_alignment(normal)
             rotation = self.rotate_into(average, rotation)
             self.rotation.set(rotation, i)
 
@@ -354,6 +358,8 @@ class SporeToolCmd(ompx.MPxToolCommand):
         for i, index in enumerate(neighbour):
             value = self.node_state.scale[index]
             factor = self.node_state.state['scale_factor']
+            falloff_weight = self.get_falloff_weight(self.node_state.position[index])
+            factor = (factor - 1) * falloff_weight + 1
             self.scale.set(value * factor, i)
 
         self.node_state.set_points(neighbour, scale=self.scale)
@@ -370,10 +376,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
         amount = self.node_state.state['scale_amount']
 
         for i, index in enumerate(neighbour):
+            falloff_weight = self.get_falloff_weight(self.node_state.position[index])
             value = self.node_state.scale[index]
             value = [value.x, value.y, value.z]
             delta = np.subtract(average, value)
-            step = np.multiply(delta, amount)
+            step = np.multiply(np.multiply(delta, amount), falloff_weight)
             new_scale = np.add(value, step)
             # TODO - uniform scale
             value = om.MVector(new_scale[0], new_scale[1], new_scale[2])
@@ -389,7 +396,9 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.set_cache_length(len(neighbour))
         amount = self.node_state.state['scale_amount']
 
+
         for i, index in enumerate(neighbour):
+            falloff_weight = self.get_falloff_weight(self.node_state.position[index])
             value = self.node_state.scale[index]
             value = [value.x, value.y, value.z]
             # get rand scale, rand * 2 -1 to distribute evenly between -1 and +1
@@ -438,10 +447,20 @@ class SporeToolCmd(ompx.MPxToolCommand):
     """ ------------------------------------------------------- """
 
     def delete_action(self, flag):
+        """ the delete action sets the point to invisible
+        when the user leaves the context all invisible points are remove.
+        this is usefull to avoid rebuilding the kd tree """
+
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbours = self.node_state.get_closest_points(position, radius)
-        self.node_state.delete_points(neighbours)
+        neighbour = self.node_state.get_closest_points(position, radius)
+        self.set_cache_length(len(neighbour))
+
+        for i, index in enumerate(neighbour):
+            self.visibility.set(0, i)
+
+        self.node_state.set_points(neighbour, visibility=self.visibility)
+        self.node_state.set_state()
 
     """ -------------------------------------------------------------------- """
     """ utils """
@@ -461,6 +480,23 @@ class SporeToolCmd(ompx.MPxToolCommand):
                              self.brush_state.tangent[2])
 
         return position, normal, tangent
+
+    def get_falloff_weight(self, point):
+        """ return a weight based on the distance to the given point
+        to the brusch center. raise an AssertionError when the distance is
+        bigger than the brush radius """
+
+        if self.node_state.state['fall_off']:
+            pos = self.brush_state.position
+            distance = om.MPoint(pos[0], pos[1], pos[2]).distanceTo(om.MPoint(point))
+            print distance, self.brush_state.radius
+            assert self.brush_state.radius > distance
+            #  partition = self.brush_state.radius * distance
+            falloff_weight = 1 - (distance / self.brush_state.radius)
+            print falloff_weight
+            return falloff_weight
+        else:
+            return 1
 
     def get_alignment(self, normal):
         """ get the alignment vector """
@@ -497,11 +533,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
                                                         math.radians(rotation.y),
                                                         math.radians(rotation.z)))
 
-        #  print 'localUp:', local_up.x, local_up.y, local_up.z
-        #  print 'retun:', direction.x, direction.y, direction.z, direction.angle(local_up)
-        #  if math.degrees(direction.angle(local_up)) <= 0.5: # 1 degree of rotation threashold
-        #      return rotation
-
         target_rotation = om.MQuaternion(local_up, direction, vector_weight)
 
         util = om.MScriptUtil()
@@ -513,13 +544,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         mat = om.MTransformationMatrix()
         mat.setRotation(rotation_ptr, om.MTransformationMatrix.kXYZ)
 
-
-        #  rotation = om.MQuaternion.slerp(mat.rotation, rotation, 1)
-        #  mat.rotateBy(rotation, om.MSpace.kWorld)
-        #  mat.rotateTo(rotation) #, om.MSpace.kWorld)
-
         mat = mat.asMatrix() * target_rotation.asMatrix()
-        #  rotation = mat.rotation()
         rotation = om.MTransformationMatrix(mat).rotation()
 
         return om.MVector(math.degrees(rotation.asEulerRotation().x),
@@ -535,6 +560,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.scale.setLength(length)
         self.rotation.setLength(length)
         self.instance_id.setLength(length)
+        self.visibility.setLength(length)
         self.normal.setLength(length)
         self.tangent.setLength(length)
         self.u_coord.setLength(length)
@@ -638,7 +664,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
             instance_id = random.randint(self.node_state.state['min_id'],
                                          self.node_state.state['max_id'])
             self.initial_id.set(instance_id, index)
-        print 'inst_id', instance_id
 
         return instance_id
 
@@ -733,8 +758,13 @@ class SporeContext(ompx.MPxContext):
         or self.node_state.state['mode'] == 'align'\
         or self.node_state.state['mode'] == 'smooth'\
         or self.node_state.state['mode'] == 'move' \
-        or self.node_state.state['mode'] == 'id':
-            self.node_state.build_kd_tree()
+        or self.node_state.state['mode'] == 'id'\
+        or self.node_state.state['mode'] == 'remove':
+            try:
+                self.node_state.build_kd_tree()
+            except ValueError: # the spore node is empty
+                self.msg_io.set_message('SporeNode is empty. Nothing to edit')
+                return
 
         # install event filter
         view = window_utils.active_view_wdg()
@@ -748,8 +778,6 @@ class SporeContext(ompx.MPxContext):
         else:
             self.canvas = canvas.CircularBrush(self.state)
 
-
-
     def toolOffCleanup(self):
         view = window_utils.active_view_wdg()
         view.removeEventFilter(self.mouse_event_filter)
@@ -757,6 +785,9 @@ class SporeContext(ompx.MPxContext):
         window.removeEventFilter(self.key_event_filter)
 
         self.state.draw = False
+
+        if self.node_state.state['mode'] == 'remove':
+            self.node_state.clean_up()
 
         if self.canvas:
             self.canvas.update()

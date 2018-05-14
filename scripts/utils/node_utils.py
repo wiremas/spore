@@ -152,6 +152,7 @@ def get_connected_in_mesh(spore_node):
     """ get the full path name of the shape node connected
     to the given spore node """
 
+    # TODO - error when node name is not unique!
     node_fn = get_dgfn_from_dagpath(spore_node)
     inmesh_plug = node_fn.findPlug('inMesh')
     in_mesh = om.MDagPath()

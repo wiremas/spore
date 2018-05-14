@@ -290,6 +290,7 @@ class AEsporeNodeTemplate(AETemplate):
         #  cmds.button('randomBtn', l='Randomize', c=pm.Callback(self.activateContext, 'random', attr, 5))
         cmds.button('moveBtn', l='Move', c=pm.Callback(self.activateContext, 'move', attr, 4))
         cmds.button('idBtn', l='Id', c=pm.Callback(self.activateContext, 'id', attr, 5))
+        cmds.button('removeBtn', l='Remove', c=pm.Callback(self.activateContext, 'remove', attr, 6))
         cmds.setParent('..')
 
 
@@ -303,6 +304,7 @@ class AEsporeNodeTemplate(AETemplate):
         #  cmds.button('randomBtn', e=True, c=pm.Callback(self.activateContext, 'random', attr, 5))
         cmds.button('moveBtn', e=True, c=pm.Callback(self.activateContext, 'move', attr, 4))
         cmds.button('idBtn', e=True, c=pm.Callback(self.activateContext, 'id', attr, 5))
+        cmds.button('removeBtn', e=True, c=pm.Callback(self.activateContext, 'remove', attr, 6))
 
         self._node = attr.split('.')[0]
 
@@ -335,6 +337,7 @@ class AEsporeNodeTemplate(AETemplate):
                     'align':            (False, True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
                     'move':             (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
                     'id':               (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   True,   False,  p_map,  p_map),
+                    'remove':           (False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False),
                     }
 
         #  dim controls

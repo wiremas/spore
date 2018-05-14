@@ -97,6 +97,7 @@ class SporeNode(ompx.MPxLocatorNode):
         #  enum_attr_fn.addField('random', 5)
         enum_attr_fn.addField('move', 4)
         enum_attr_fn.addField('id', 5)
+        enum_attr_fn.addField('remove', 6)
         enum_attr_fn.setStorable(False)
         enum_attr_fn.setKeyable(False)
         enum_attr_fn.setConnectable(False)
@@ -382,7 +383,8 @@ class SporeNode(ompx.MPxLocatorNode):
             out_position = array_attr_fn.vectorArray('position')
             out_scale = array_attr_fn.vectorArray('scale')
             out_rotation = array_attr_fn.vectorArray('rotation')
-            out_id = array_attr_fn.intArray('id')
+            out_id = array_attr_fn.intArray('objectIndex')
+            out_id = array_attr_fn.intArray('visibility')
 
             normal = array_attr_fn.vectorArray('normal')
             tangent = array_attr_fn.vectorArray('tangent')

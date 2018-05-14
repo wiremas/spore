@@ -23,6 +23,7 @@ class SporeState(object):
         self.scale = om.MVectorArray()
         self.rotation = om.MVectorArray()
         self.instance_id = om.MIntArray()
+        self.visibility = om.MIntArray()
 
         self.normal = om.MVectorArray()
         self.tangent = om.MVectorArray()
@@ -52,6 +53,7 @@ class SporeState(object):
         self.scale = array_attr_fn.vectorArray('scale')
         self.rotation = array_attr_fn.vectorArray('rotation')
         self.instance_id = array_attr_fn.intArray('objectIndex')
+        self.visibility = array_attr_fn.intArray('visibility')
 
         self.normal = array_attr_fn.vectorArray('normal')
         self.tangent = array_attr_fn.vectorArray('tangent')
@@ -72,13 +74,14 @@ class SporeState(object):
 
 
     def get_node_state(self):
-        modes = ['place', 'spray', 'scale', 'align', 'move', 'id']
+        modes = ['place', 'spray', 'scale', 'align', 'move', 'id', 'remove']
         mode_id = cmds.getAttr('{}.contextMode'.format(self.node))
         align_modes = ['normal', 'world', 'object', 'stroke']
         align_id = cmds.getAttr('{}.alignTo'.format(self.node))
         self.state = {'mode': modes[mode_id],
                       'num_samples': cmds.getAttr('{}.numBrushSamples'.format(self.node)),
                       'min_distance': cmds.getAttr('{}.minDistance'.format(self.node)),
+                      'fall_off': cmds.getAttr('{}.fallOff'.format(self.node)),
                       'align_to': align_modes[align_id],
                       'strength': cmds.getAttr('{}.strength'.format(self.node)),
                       'min_rot': cmds.getAttr('{}.minRotation'.format(self.node))[0],
@@ -112,8 +115,6 @@ class SporeState(object):
         view = window_utils.active_view()
         view.refresh(True, False)
 
-        #  print '{} instances place'.format(self.position.length())
-
     def get_data_object(self):
         """ return the mObject containing instanceData attribute
         :return mObject: """
@@ -121,7 +122,7 @@ class SporeState(object):
         return self.data_object
 
 
-    def append_points(self, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
+    def append_points(self, position, scale, rotation, instance_id, visibility, normal, tangent, u_coord, v_coord, poly_id, color):
 
         appended_ids = om.MIntArray()
         for i in xrange(position.length()):
@@ -129,6 +130,7 @@ class SporeState(object):
             self.scale.append(scale[i])
             self.rotation.append(rotation[i])
             self.instance_id.append(instance_id[i])
+            self.visibility.append(visibility[i])
             self.normal.append(normal[i])
             self.tangent.append(tangent[i])
             self.u_coord.append(u_coord[i])
@@ -147,14 +149,16 @@ class SporeState(object):
 
 
     def set_points(self, index, position=None, scale=None, rotation=None,
-                   instance_id=None, normal=None, tangent=None, u_coord=None,
-                   v_coord=None, poly_id=None, color=None):
+                   instance_id=None, visibility=None, normal=None,
+                   tangent=None, u_coord=None, v_coord=None, poly_id=None,
+                   color=None):
         """ set points identified by the given index for the given array(s)
         :param index list: list in indexes to set
         :param position MVectorArray: array of position data
         :param scalae MVectorArray:
         :param rotation MVectorArray:
         :param instance_id MIntArray
+        :param visibility MIntArray
         :param normal MVectorArray
         :param tangent MVectorArray
         :param u_coord MDoubleArray
@@ -176,6 +180,9 @@ class SporeState(object):
             if instance_id:
                 assert len(index) == instance_id.length()
                 length = instance_id.length()
+            if visibility:
+                assert len(index) == visibility.length()
+                length = visibility.length()
             if normal:
                 assert len(index) == normal.length()
                 length = normal.length()
@@ -210,6 +217,8 @@ class SporeState(object):
                 self.rotation.set(rotation[i], index[i])
             if instance_id:
                 self.instance_id.set(instance_id[i], index[i])
+            if visibility:
+                self.visibility.set(visibility[i], index[i])
             if normal:
                 self.normal.set(normal[i], index[i])
             if tangent:
@@ -224,129 +233,28 @@ class SporeState(object):
                 assert len(index) == color.length()
                 self.color.set(color[i], index[i])
 
-
-    def set_point(self, index, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
-
-        # TODO - check if index is out of bounds
-        if isinstance(position, om.MPoint):
-            position = om.MVector(position.x, position.y, position.z)
-
-        self.position.set(position, index)
-        self.scale.set(scale, index)
-        self.rotation.set(rotation, index)
-        self.instance_id.set(instance_id, index)
-
-        self.normal.set(normal, index)
-        self.tangent.set(tangent, index)
-
-        self.u_coord.set(u_coord, index)
-        self.v_coord.set(v_coord, index)
-        self.poly_id.set(poly_id, index)
-        self.color.set(color, index)
-
-        # TODO - set as tuple
-        #  self.np_position[index] = [position.x, position.y, position.z]
-
-        self.unique_id.set(index + 1, index)
-
-
-    def append_point(self, position, scale, rotation, instance_id, normal, tangent, u_coord, v_coord, poly_id, color):
-        """ append a new point to the cache """
-
-        if isinstance(position, om.MVector):
-            self.position.append(position)
-            self.np_position = np.append(self.np_position,
-                                        np.array([[position.x,
-                                                    position.y,
-                                                    position.z]]),
-                                        axis=0)
-        elif isinstance(position, om.MPoint):
-            self.position.append(om.MVector(position.x, position.y, position.z))
-            self.np_position = np.append(self.np_position,
-                                        np.array([[position.x,
-                                                    position.y,
-                                                    position.z]]),
-                                        axis=0)
-        elif (isinstance(position, tuple) or isinstance(position, list)) and len(position) == 3:
-            self.position.append(om.MVector(position[0], position[1], position[2]))
-            self.np_position = np.append(self.np_position,
-                                        np.array([[position[0],
-                                                    position[1],
-                                                    position[2]]]),
-                                        axis=0)
-        else:
-            raise TypeError('Position attribute must be of type: MVector, MPoint, tuple or list.')
-
-        if isinstance(scale, om.MVector):
-            self.scale.append(scale)
-        elif (isinstance(scale, tuple) or isinstance(scale, list)) and len(scale) == 3:
-            self.scale.append(om.MVector(scale[0], scale[1], scale[2]))
-        else:
-            raise TypeError('Invalid input for scale attr: {}'.format(type(scale)))
-
-        if isinstance(rotation, om.MVector):
-            self.rotation.append(rotation)
-        elif (isinstance(rotation, tuple) or isinstance(rotation, list)) and len(rotation) == 3:
-            self.scale.append(om.MVector(rotation[0], rotation[1], rotation[2]))
-        else:
-            raise TypeError('Invalid input for rotation attr: {}'.format(type(scale)))
-
-        if isinstance(instance_id, int) or isinstance(instance_id, float):
-            self.instance_id.append(int(instance_id))
-        else:
-            raise TypeError('Invalid input for instance id attr: {}'.format(type(scale)))
-
-        if isinstance(normal, om.MVector):
-            self.normal.append(normal)
-        elif (isinstance(normal, tuple) or isinstance(normal, list)) and len(normal) == 3:
-            self.normal.append(om.MVector(normal[0], normal[1], normal[2]))
-        else:
-            raise TypeError('Invalid input for normal attr: {}'.format(type(normal)))
-
-        if isinstance(tangent, om.MVector):
-            self.tangent.append(tangent)
-        elif (isinstance(tangent, tuple) or isinstance(tangent, list)) and len(tangent) == 3:
-            self.tangent.append(om.MVector(tangent[0], tangent[1], tangent[2]))
-        else:
-            raise TypeError('Invalid input for tangent attr: {}'.format(type(tangent)))
-
-
-        if isinstance(u_coord, float) or isinstance(u_coord, int):
-            self.u_coord.append(u_coord)
-        else:
-            raise TypeError('Invalid input for u coord attr: {}'.format(type(u_coord)))
-
-        if isinstance(v_coord, float) or isinstance(v_coord, int):
-            self.v_coord.append(v_coord)
-        else:
-            raise TypeError('Invalid input for v coord attr: {}'.format(type(v_coord)))
-
-        if isinstance(poly_id, int) or isinstance(poly_id, float):
-            self.poly_id.append(int(poly_id))
-        else:
-            raise TypeError('Invalid input for poly id attr: {}'.format(type(tangent)))
-
-        if isinstance(color, om.MVector):
-            self.color.append(color)
-        elif (isinstance(color, tuple) or isinstance(color, list)) and len(color) == 3:
-            self.color.append(om.MVector(color[0], color[1], color[2]))
-        else:
-            raise TypeError('Invalid input for color attr: {}'.format(type(tangent)))
-
-        # set position also as np array to set up the kd tree
-        #  self.np_position = np.append(self.np_position,
-        #                               np.array([[self.position[-1].x,
-        #                                          self.position[-1].y,
-        #                                          self.position[-1].z]]),
-        #                               axis=0)
-
-
-        # finally append a unique id to each point
-        unique_id = self.position.length()
-        self.unique_id.append(unique_id)
-
-        return unique_id
-
+    #  def delete_points(self, index):
+    #      index = sorted(index, reverse=True)
+    #      print index, len(index), self.position.length()
+    #      for i in index:
+    #          self.position.remove(i)
+    #          self.np_position = np.delete(self.np_position, i, 0)
+    #          self.scale.remove(i)
+    #          self.rotation.remove(i)
+    #          self.instance_id.remove(i)
+    #          self.visibility.remove(i)
+    #          self.normal.remove(i)
+    #          self.tangent.remove(i)
+    #          self.u_coord.remove(i)
+    #          self.v_coord.remove(i)
+    #          self.poly_id.remove(i)
+    #          self.color.remove(i)
+    #
+    #      print self.position.length(), len(self.np_position)
+    #      # TODO - a bit unfortunate but we have to rebuild our kd tree after
+    #      # deleteing points / an alternative would be to hide object while
+    #      # deleting and removing them at clean up
+    #      self.build_kd_tree()
 
     def length(self):
         # TODO - do some checking if all the array are the same length?
@@ -367,6 +275,21 @@ class SporeState(object):
         scale_mean = np.mean(scale_values, axis=0)
         return scale_mean
 
+    def get_rotation_average(self, index):
+        """ get the average scale value for the given list of indexes
+        @param index list: list of indexes
+        @return x, y, z scale mean """
+
+        rotation_value = np.empty((0,3), float)
+        for i in index:
+            rotation_value = np.append(rotation_value, [[self.rotation[i].x,
+                                                         self.rotation[i].y,
+                                                         self.rotation[i].z]],
+                                     axis=0)
+
+        rotation_value = np.mean(rotation_value, axis=0)
+        return rotation_value
+
     def get_closest_points(self, position, radius):
         """ get a list of all indexes within the given radius from the
         given position """
@@ -375,6 +298,28 @@ class SporeState(object):
             position = (position.x, position.y, position.z)
         neighbours = self.tree.query_ball_point(position, radius)
         return list(neighbours)
+
+    def clean_up(self):
+        """ remove all points that a invisible after the delete brush
+        has initially hidden them and is tearn down when the has been context left """
+
+        invalid_ids = [i for i in xrange(self.visibility.length()) if self.visibility[i] == 0]
+        invalid_ids = sorted(invalid_ids, reverse=True)
+
+        for index in invalid_ids:
+            self.position.remove(index)
+            self.scale.remove(index)
+            self.rotation.remove(index)
+            self.instance_id.remove(index)
+            self.visibility.remove(index)
+            self.normal.remove(index)
+            self.tangent.remove(index)
+            self.u_coord.remove(index)
+            self.v_coord.remove(index)
+            self.poly_id.remove(index)
+            self.color.remove(index)
+            self.unique_id.remove(index)
+
 
     def __len__(self):
         return self.position.length()
