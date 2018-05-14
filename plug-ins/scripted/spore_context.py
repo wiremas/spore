@@ -127,6 +127,8 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def redoIt(self):
         flag = self.brush_state.action
 
+        # TODO - check if there are points save if flag is drag
+
         if self.node_state.state['mode'] == 'place'\
         or self.node_state.state['mode'] == 'spray': #'place':
             self.place_action(flag)
@@ -157,6 +159,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
             self.delete_action(flag)
 
     def undoIt(self):
+
         print 'undoIt', self.last_undo_journal
         self.last_undo_journal = cmds.undoInfo(q=True, un=True)
 
@@ -489,18 +492,15 @@ class SporeToolCmd(ompx.MPxToolCommand):
         if self.node_state.state['fall_off']:
             pos = self.brush_state.position
             distance = om.MPoint(pos[0], pos[1], pos[2]).distanceTo(om.MPoint(point))
-            print distance, self.brush_state.radius
             assert self.brush_state.radius > distance
             #  partition = self.brush_state.radius * distance
             falloff_weight = 1 - (distance / self.brush_state.radius)
-            print falloff_weight
             return falloff_weight
         else:
             return 1
 
     def get_alignment(self, normal):
         """ get the alignment vector """
-        print 'metamod', self.brush_state.meta_mod
 
         if self.node_state.state['align_to'] == 'world': # align to world
             direction = om.MVector(0, 1, 0)
@@ -954,7 +954,6 @@ class SporeContext(ompx.MPxContext):
         self.state.shift_mod = False
         self.canvas.update()
 
-
     @Slot()
     def b_pressed(self):
         self.state.modify_radius = True
@@ -1000,7 +999,6 @@ class SporeContext(ompx.MPxContext):
         """ create a new instance of the command associated with the context """
 
         tool_cmd = self._newToolCommand()
-        #  print 'toolcmd: ', tool_cmd # spore_tool_cmd.SporeToolCmd.tracking_dir # .get(ompx.asHashable(tool_cmd))
         self.tool_cmd = K_TRACKING_DICTIONARY.get(ompx.asHashable(tool_cmd))
         self.tool_cmd.initialize_tool_cmd(self.state, self.node_state)
 

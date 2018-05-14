@@ -53,12 +53,10 @@ class KeyEventFilter(QObject):
                     return True
 
                 if event.key() == Qt.Key_Shift:
-                    print 'shift'
                     self.shift_pressed.emit()
                     return True
 
                 if event.key() == Qt.Key_Meta:
-                    print 'meta'
                     self.meta_pressed.emit()
                     return True
 
@@ -76,7 +74,6 @@ class KeyEventFilter(QObject):
                     return True
 
                 if event.key() == Qt.Key_Meta:
-                    print 'meta'
                     self.meta_released.emit()
                     return True
 
@@ -98,7 +95,6 @@ class MouseEventFilter(QObject):
     released = Signal(QPoint)
     leave = Signal()
 
-
     def __init__(self, parent):
         super(MouseEventFilter, self).__init__()
         self.parent = parent
@@ -108,14 +104,13 @@ class MouseEventFilter(QObject):
     def eventFilter(self, source, event):
 
         if isinstance(event, QKeyEvent) and not event.isAutoRepeat():
+            print event.key(), Qt.Key_Meta, event.key() == Qt.Key_Meta
             if event.type() == QEvent.KeyPress and not self.is_clicked:
-                if event.key() != Qt.Key_Shift:
+                if event.key() != Qt.Key_Shift and event.key() != Qt.Key_Meta:
                     self.is_modified = True
             if event.type() == QEvent.KeyRelease and not self.is_clicked:
-                print 'mod_off'
-
-            #  if event.type() == QEvent.KeyRelease:
-            #      self.is_modified = False
+                if event.key() != Qt.Key_Shift and event.key() != Qt.Key_Meta:
+                    self.is_modified = False
 
         # Mouse Events
         if event.type() == QEvent.MouseMove:
@@ -142,20 +137,9 @@ class MouseEventFilter(QObject):
                 position = event.pos()
                 self.released.emit(position)
                 return False
-            else:
-                self.is_modified = False
-
 
         if event.type() == QEvent.Leave:
             self.leave.emit()
             return False
 
         return False
-
-#  class SenderObj(QObject):
-#      #  trigger = Signal(object)
-#      press = Signal(dict)
-#      drag = Signal(dict)
-#      release = Signal(dict)
-
-
