@@ -104,7 +104,6 @@ class MouseEventFilter(QObject):
     def eventFilter(self, source, event):
 
         if isinstance(event, QKeyEvent) and not event.isAutoRepeat():
-            print event.key(), Qt.Key_Meta, event.key() == Qt.Key_Meta
             if event.type() == QEvent.KeyPress and not self.is_clicked:
                 if event.key() != Qt.Key_Shift and event.key() != Qt.Key_Meta:
                     self.is_modified = True

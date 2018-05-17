@@ -148,12 +148,18 @@ def get_instancer(spore_node):
 
 
 
-def get_connected_in_mesh(spore_node):
-    """ get the full path name of the shape node connected
+def get_connected_in_mesh(spore_node, as_string=True):
+    """ get the full path name or mDagPath of the shape node connected
     to the given spore node """
 
     # TODO - error when node name is not unique!
-    node_fn = get_dgfn_from_dagpath(spore_node)
+    if isinstance(spore_node, str) or isinstance(spore_node, unicode):
+        node_fn = get_dgfn_from_dagpath(spore_node)
+    elif isinstance(spore_node, om.MObject):
+        node_fn = om.MFnDagNode(spore_node)
+    else:
+        raise TypeError('Expected type string or MObject, got: {}'.format(type(spore_node)))
+
     inmesh_plug = node_fn.findPlug('inMesh')
     in_mesh = om.MDagPath()
     if not inmesh_plug.isNull():
@@ -163,7 +169,10 @@ def get_connected_in_mesh(spore_node):
             if input_node.hasFn(om.MFn.kMesh):
                 om.MDagPath.getAPathTo(input_node, in_mesh)
                 if in_mesh.isValid():
-                    return in_mesh.fullPathName()
+                    if as_string:
+                        return in_mesh.fullPathName()
+                    else:
+                        return in_mesh
 
 
 
