@@ -34,53 +34,53 @@ git clone https://github.com/wiremas/spore
 
 # sporeNode
 
-#h3 Brush Menu
+### Brush Menu
 
-#h3 Emit Menu
+### Emit Menu
 
 The *sporeNode* features three different sampling types:
 1. random sampling
 2. jitter grid 
 3. poisson disk sampling
 
-#h3 Instance Objects Menu
+### Instance Objects Menu
 
 Quick acces to adding/removing objects to the instancer
 note: selecting items in the list activates *Exclusive Paint*
 
 # sporeContex
 
-#h3 Place Mode
+### Place Mode
 
 Place a singe instance per brush tick
 Shift: activate drag mode
 Meta: align to stroke direction
 
-#h3 Spray Mode
+### Spray Mode
 
 Place n instances per brush tick within the given radius
 Shift: activate drag mode
 Meta: align to stroke direction
 
-#h3 Scale Mode
+### Scale Mode
 
 Scale all instance within the given radius
 Shift: smooth scale
 Meta: randomize scale
 
-#h3 Align Mode
+### Align Mode
 
 Align all instances within the given radius to the specified axis
 
-#h3 Id Mode
+### Id Mode
 
 Set the objectIndex of all instance within the radius to the specified ID
 
-#h3 Delete Mode
+### Delete Mode
 
 Remove all instances within the given radius
 
-#h3 Exclusive Mode
+### Exclusive Mode
 In **Exclusive Mode** the context works only on certain objectIndex IDs.
 To activate **Exclusive Mode** select the desired sources objects in the
 sporeNode's instance object list.
