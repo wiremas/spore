@@ -17,14 +17,14 @@ class BrushState(object):
         self.last_position = tuple()
 
         self.target = None
-        self.node = None
+        self._node = None
 
         self.stroke_direction = tuple()
 
         self.cursor_x = float()
         self.cursor_y = float()
 
-        self.radius = 1
+        self._radius = 1
         self.modify_radius = False
         self.first_scale = True
         self.first_x = float()
@@ -37,29 +37,31 @@ class BrushState(object):
         self.action = None
         self.settings = {}
 
-    #  @property
-    #  def node(self):
-    #      return self._node
-    #
-    #  @node.setter
-    #  def node(self, node_name):
-    #      self._node = node_name
-    #      modes = ['place', 'spray', 'scale', 'align', 'smooth', 'move', 'id']
-    #      mode_id = cmds.getAttr('{}.contextMode'.format(self._node))
-    #      self.settings = {'mode': modes[mode_id],
-    #                      'num_samples': cmds.getAttr('{}.numBrushSamples'.format(self._node)),
-    #                      'min_distance': cmds.getAttr('{}.minDistance'.format(self._node)),
-    #                      'align_to': cmds.getAttr('{}.alignTo'.format(self._node)),
-    #                      'strength': cmds.getAttr('{}.strength'.format(self._node)),
-    #                      'min_rot': cmds.getAttr('{}.minRotation'.format(self._node))[0],
-    #                      'max_rot': cmds.getAttr('{}.maxRotation'.format(self._node))[0],
-    #                      'uni_scale': cmds.getAttr('{}.uniformScale'.format(self._node)),
-    #                      'min_scale': cmds.getAttr('{}.minScale'.format(self._node))[0],
-    #                      'max_scale': cmds.getAttr('{}.maxScale'.format(self._node))[0],
-    #                      'min_offset': cmds.getAttr('{}.minOffset'.format(self._node)),
-    #                      'max_offset': cmds.getAttr('{}.maxOffset'.format(self._node)),
-    #                      'min_id': cmds.getAttr('{}.minId'.format(self._node)),
-    #                      'max_id': cmds.getAttr('{}.maxId'.format(self._node))}
+    @property
+    def node(self):
+        """ node getter """
+
+        return self._node
+
+    @node.setter
+    def node(self, node_name):
+        """ node setter """
+
+        self._node = node_name
+        self._radius = cmds.getAttr('{}.brushRadius'.format(self._node))
+
+    @property
+    def radius(self):
+        """ brush radius getter """
+
+        return self._radius
+
+    @radius.setter
+    def radius(self, radius):
+        """ brush radius setter """
+
+        self._radius = radius
+        cmds.setAttr('{}.brushRadius'.format(self._node), radius)
 
     def get_screen_position(self, invert_y=True):
         """ get the current brush position in screen space coordinates
@@ -124,7 +126,7 @@ class BrushState(object):
                 for i in xrange(20 + 1):
                     rot = om.MQuaternion(theta * i, nrm)
                     rtan = tan.rotateBy(rot)
-                    pos = pnt + (rtan * self.radius)
+                    pos = pnt + (rtan * self._radius)
 
                     pos_x, pos_y = self.world_to_view(pos)
                     shape.append((pos_x, pos_y))

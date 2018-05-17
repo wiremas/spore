@@ -309,7 +309,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def align_action(self, flag):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius)
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
         self.set_cache_length(len(neighbour))
 
         for i, index in enumerate(neighbour):
@@ -326,7 +326,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         """ """
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius)
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
         average = self.node_state.get_rotation_average(neighbour)
         average = om.MVector(average[0], average[1], average[2])
         self.set_cache_length(len(neighbour))
@@ -355,7 +355,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
 
-        neighbour = self.node_state.get_closest_points(position, radius)
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
         self.set_cache_length(len(neighbour))
 
         for i, index in enumerate(neighbour):
@@ -373,7 +373,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius)
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
         self.set_cache_length(len(neighbour))
         average = self.node_state.get_scale_average(neighbour)
         amount = self.node_state.state['scale_amount']
@@ -395,7 +395,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def random_scale_action(self, flag):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius)
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
         self.set_cache_length(len(neighbour))
         amount = self.node_state.state['scale_amount']
 
@@ -430,7 +430,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def index_action(self, flag):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius)
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
         self.set_cache_length(len(neighbour))
         min_id = self.node_state.state['min_id']
         max_id = self.node_state.state['max_id']
@@ -456,7 +456,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius)
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
         self.set_cache_length(len(neighbour))
 
         for i, index in enumerate(neighbour):
@@ -659,6 +659,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
         # when we in drag mode we want to maintain old instance id value
         if self.brush_state.shift_mod and flag != SporeToolCmd.k_click:
             instance_id = self.initial_id[index]
+
+        #  add exclusive paint
+        #  elif self.node_state.exclusive_paint:
+        #      ins
 
         else:
             instance_id = random.randint(self.node_state.state['min_id'],
@@ -922,25 +926,21 @@ class SporeContext(ompx.MPxContext):
 
     @Slot()
     def ctrl_pressed(self):
-        print 'ctrl on'
         self.state.ctrl_mod = True
         self.canvas.update()
 
     @Slot()
     def ctrl_released(self):
-        print 'ctrl off'
         self.state.ctrl_mod = False
         self.canvas.update()
 
     @Slot()
     def meta_pressed(self):
-        print 'meta on'
         self.state.meta_mod = True
         self.canvas.update()
 
     @Slot()
     def meta_released(self):
-        print 'meta off'
         self.state.meta_mod = False
         self.canvas.update()
 
