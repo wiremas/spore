@@ -33,6 +33,7 @@ class SporeState(object):
         self.color = om.MVectorArray()
         self.unique_id = om.MIntArray()
 
+        self.exclusive_paint = []
         self.bounding_box = om.MBoundingBox()
 
         self.np_position = np.empty((0,3), float)
@@ -95,6 +96,14 @@ class SporeState(object):
                       'max_offset': cmds.getAttr('{}.maxOffset'.format(self.node)),
                       'min_id': cmds.getAttr('{}.minId'.format(self.node)),
                       'max_id': cmds.getAttr('{}.maxId'.format(self.node))}
+
+        # get selected item from node's textScrollList
+        sel = cmds.textScrollList('instanceList', q=1, si=1)
+        if sel:
+            self.exclusive_paint = [int(s.split(' ')[0].strip('[]:')) for s in sel]
+        else:
+            self.exclusive_paint = []
+
 
     def build_kd_tree(self, refresh_position=False):
         """ build the kd tree """
@@ -290,14 +299,32 @@ class SporeState(object):
         rotation_value = np.mean(rotation_value, axis=0)
         return rotation_value
 
-    def get_closest_points(self, position, radius):
+    def get_closest_points(self, position, radius, exclude=[]):
         """ get a list of all indexes within the given radius from the
-        given position """
+        given position
+        :param position: MPoint, List, tupe or np.array
+        :param radius
+        :param exclude: list of instance ids to exclude from nearest
+                        neighbour search """
 
         if isinstance(position, om.MPoint):
             position = (position.x, position.y, position.z)
         neighbours = self.tree.query_ball_point(position, radius)
-        return list(neighbours)
+
+        if exclude:
+            instance_ids = np.array([])
+            for index in neighbours:
+                instance_ids = np.append(instance_ids, self.instance_id[index])
+
+            valid_index = np.array([])
+            for index in exclude:
+                valid_index = np.append(valid_index, np.where(instance_ids==index))
+
+            neighbours = [neighbours[int(i)] for i in valid_index]
+            return neighbours
+
+        else:
+            return list(neighbours)
 
     def clean_up(self):
         """ remove all points that a invisible after the delete brush
@@ -330,6 +357,7 @@ class SporeState(object):
                      'scale': self.scale[i],
                      'rotation': self.rotation[i],
                      'instance_id': self.instance_id[i],
+                     'visibility': self.visibility[i],
                      'normal': self.normal[i],
                      'tangent': self.tangent[i],
                      'u': self.u_coord[i],
