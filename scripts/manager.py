@@ -6,9 +6,10 @@ import pymel
 import maya.cmds as cmds
 import maya.OpenMaya as om
 
-from PySide2.QtCore import Slot, QObject
+from PySide2.QtCore import Slot, QObject, Qt
+from PySide2.QtWidgets import QAction
 
-print __name__, __file__
+#  print __name__, __file__
 
 import manager_ui
 import node_utils
@@ -21,31 +22,80 @@ class SporeManager(object):
 
     def __init__(self):
 
+        self.wdg_tree = collections.defaultdict(list)
+
         self.ui = manager_ui.ManagerWindow()
-        self.update_ui()
+        self.initialize_ui()
         self.connect_signals()
 
 
     def connect_signals(self):
 
         self.ui.add_spore_clicked.connect(self.add_spore)
+        #  self.ui.remove_spore_clicked.connect(self.add_spore)
+        self.ui.refresh_spore_clicked.connect(self.refresh_spore)
 
-    def update_ui(self):
+    @Slot(str)
+    def add_spore(self, name):
+        """ add a new spore setup to the scene """
 
-        self.ui.clear_items()
+        spore_node, instancer = cmds.spore()
+        spore_transform = cmds.listRelatives(spore_node, p=True, f=True)[0]
+        print 'rn', cmds.rename(spore_node, '{}SporeShape'.format(name))
+        cmds.rename(spore_transform, '{}SporeTransform'.format(name))
+        cmds.rename(instancer, '{}SporeInstancer'.format(name))
+
+        self.ui.clear_layout()
+        self.initialize_ui()
+        self.refresh_spore()
+
+    def remove_spore(self):
+        """ remove selected spore setup(s) from the scene """
+
+        pass
+
+    def refresh_spore(self):
+        """ refresh spore ui """
+
+        self.wdg_tree = collections.defaultdict(list)
+        self.ui.clear_layout()
+        self.initialize_ui()
+
+
+    def initialize_ui(self):
+
+        targets = self.get_spore_setups()
+        for target, spore_nodes in targets.iteritems():
+            geo_wdg = manager_ui.GeoItem(target) # , self.ui.spore_layout)
+            geo_wdg.clicked.connect(self.item_clicked)
+            self.ui.append_item(geo_wdg)
+
+            for spore in spore_nodes:
+                # create and add new spore widget
+                spore_wdg = manager_ui.SporeItem(spore, geo_wdg)
+                geo_wdg.add_child(spore_wdg)
+                self.wdg_tree[geo_wdg].append(spore_wdg)
+
+                # hook up some signals
+                spore_wdg.clicked.connect(self.item_clicked)
+                spore_wdg.context_requested.connect(self.context_request)
+                spore_wdg.view_instancer.connect(self.toggle_view)
+                spore_wdg.view_bounding_box.connect(self.toggle_view)
+                spore_wdg.view_bounding_boxes.connect(self.toggle_view)
+                #  spore_wdg.view_hide.connect(self.toggle_view)
+
+
+
+
+    def get_spore_setups(self):
+        """ return a dictionary with an entry for each target mesh
+        and for each entry a list with all connected spore nodes """
 
         spore_nodes = cmds.ls(type='sporeNode', l=True)
         targets = collections.defaultdict(list)
-        [targets[self.get_spore_target(node)].append(node) for node in spore_nodes]
-        for soil, spore_nodes in targets.iteritems():
-            item_wdg = manager_ui.ItemWidget(soil.split('|')[-1], True, self.ui)
-            item_wdg.clicked.connect(self.item_clicked)
-            self.ui.append_item(item_wdg)
+        [targets[node_utils.get_connected_in_mesh(node)].append(node) for node in spore_nodes]
+        return targets
 
-            for spore in spore_nodes:
-                spore_item_wdg = manager_ui.ItemWidget(spore, False, item_wdg)
-                spore_item_wdg.clicked.connect(self.item_clicked)
-                item_wdg.add_child(spore_item_wdg)
 
     def get_spore_target(self, node_name): # get_soil
         node_fn = node_utils.get_dgfn_from_dagpath(node_name)
@@ -61,39 +111,52 @@ class SporeManager(object):
                         return in_mesh.fullPathName()
 
     @Slot(QObject)
-    def item_clicked(self, item_wdg):
-        item_name = item_wdg.name
-        if cmds.objExists(item_name):
-            if item_wdg.is_root:
-                cmds.select(cmds.listRelatives(item_name, p=True))
-            else:
-                cmds.select(item_name)
+    def item_clicked(self, widget, event):
 
+        item_name = widget.long_name
+        item_state = widget.is_selected
+        if cmds.objExists(item_name):
+            cmds.select(clear=True)
+
+            #  spore_sel = cmds.ls(sl=True, l=True, type='sporeNode')
+            #  cmds.select(spore_sel)
+            #  cmds.select(item_name, add=True)
+
+            for geo_item, spore_items in self.wdg_tree.iteritems():
+                print geo_item, spore_items
+                for spore_item in spore_items:
+                    if event.modifiers() == Qt.ControlModifier\
+                    and spore_item.is_selected:
+                        cmds.select(spore_item.long_name, add=True)
+                    else:
+                        spore_item.deselect()
+
+            widget.set_select(item_state)
+            cmds.select(item_name)
+
+        else:
+            self.refresh_spore()
+
+    @Slot(QObject, int)
+    def toggle_view(self, widget, mode):
+        print 'toggle'
+        mesh_name = widget.long_name
+        if cmds.objExists(mesh_name):
+            instancer = node_utils.get_instancer(mesh_name)
+            if instancer:
+                cmds.setAttr('{}.levelOfDetail'.format(instancer))
+
+
+    @Slot(QAction)
+    def context_request(self, action):
+        print 'context request', action
 
 
     def show(self):
         self.ui.show(dockable=True)
 
-    def add_spore(self):
-        selection = cmds.ls(sl=True, l=True)
 
-        if len(selection) == 0:
-            #TODO - show some kind of dialog to add source and target
-            pass
 
-        else:
-            target = selection.pop(0)
-            source = selection
-
-            instancer = cmds.instancer()
-            mesh = cmds.listRelatives(target, s=True)[0]
-            node = cmds.createNode("sporeNode")
-            cmds.connectAttr(node + '.instanceData', instancer + '.inputPoints')
-            cmds.connectAttr(mesh + '.outMesh', node + '.inMesh')
-
-            self.update_ui()
-
-print __name__
 if __name__ == 'manager':
 
     #  spore_root = os.path.dirname(__file__)
