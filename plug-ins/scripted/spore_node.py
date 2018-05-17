@@ -7,17 +7,19 @@ import maya.OpenMayaRender as omr
 
 #  from spore.data import point_cache
 
+import node_utils
+import node_state
+
+
 class SporeNode(ompx.MPxLocatorNode):
     name = 'sporeNode'
     id = om.MTypeId(0x88805)
 
-    # node attributes
+    # output attributes
     a_instance_data = om.MObject() # point output attr
-
     # input attributes
     in_mesh = om.MObject() # input mesh
     a_emit_texture  = om.MObject() # emit texture
-
     # node attributes
     a_context_mode = om.MObject() # current mode of the context
     a_num_brush_samples = om.MObject()
@@ -44,8 +46,24 @@ class SporeNode(ompx.MPxLocatorNode):
     a_pressure_mapping = om.MObject()
     a_min_pressure = om.MObject()
     a_max_pressure = om.MObject()
-    a_cached = om.MObject()
+    # info / dummy attributes
+    a_geo_cached = om.MObject()
+    a_points_cached = om.MObject()
+    a_brush_radius = om.MObject()
     a_num_spores = om.MObject()
+    # storage attributes
+    a_position = om.MObject()
+    a_rotation = om.MObject()
+    a_scale = om.MObject()
+    a_instance_id = om.MObject()
+    a_visibility = om.MObject()
+    a_normal = om.MObject()
+    a_tangnet = om.MObject()
+    a_u_coord = om.MObject()
+    a_v_coord = om.MObject()
+    a_poly_id = om.MObject()
+    a_color = om.MObject()
+    a_unique_id = om.MObject()
 
     context = None
 
@@ -67,6 +85,9 @@ class SporeNode(ompx.MPxLocatorNode):
         typed_attr_fn = om.MFnTypedAttribute()
         enum_attr_fn = om.MFnEnumAttribute()
         numeric_attr_fn = om.MFnNumericAttribute()
+        vect_array_attr = om.MFnVectorArrayData()
+        int_array_attr = om.MFnIntArrayData()
+        double_array_attr = om.MFnDoubleArrayData()
 
         # output attributes
         cls.a_instance_data = generic_attr_fn.create('instanceData', 'instanceData')
@@ -93,8 +114,6 @@ class SporeNode(ompx.MPxLocatorNode):
         enum_attr_fn.addField('spray', 1)
         enum_attr_fn.addField('scale', 2)
         enum_attr_fn.addField('align', 3)
-        #  enum_attr_fn.addField('smooth', 4)
-        #  enum_attr_fn.addField('random', 5)
         enum_attr_fn.addField('move', 4)
         enum_attr_fn.addField('id', 5)
         enum_attr_fn.addField('remove', 6)
@@ -147,7 +166,7 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_max_scale)
 
-        cls.a_scale_factor = numeric_attr_fn.create('scaleFactor', 'scaleFactor', om.MFnNumericData.kDouble, 1)
+        cls.a_scale_factor = numeric_attr_fn.create('scaleFactor', 'scaleFactor', om.MFnNumericData.kDouble, 1.05)
         numeric_attr_fn.setMin(0.001)
         numeric_attr_fn.setSoftMin(0.8)
         numeric_attr_fn.setSoftMax(1.2)
@@ -183,12 +202,16 @@ class SporeNode(ompx.MPxLocatorNode):
         cls.addAttribute(cls.a_max_rotation )
 
         cls.a_min_offset = numeric_attr_fn.create('minOffset', 'minOffset', om.MFnNumericData.kInt, 0)
+        numeric_attr_fn.setSoftMin(-10)
+        numeric_attr_fn.setSoftMax(10)
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_min_offset )
 
         cls.a_max_offset = numeric_attr_fn.create('maxOffset', 'maxOffset', om.MFnNumericData.kInt, 0)
+        numeric_attr_fn.setSoftMin(-10)
+        numeric_attr_fn.setSoftMax(10)
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
@@ -310,11 +333,26 @@ class SporeNode(ompx.MPxLocatorNode):
         cls.addAttribute(cls.a_min_radius)
 
         # node attribute - dummy attributes
-        cls.a_cached = numeric_attr_fn.create('cached', 'cached', om.MFnNumericData.kBoolean, 0)
+        cls.a_geo_cached = numeric_attr_fn.create('geoCached', 'geoCached', om.MFnNumericData.kBoolean, 0)
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
-        cls.addAttribute(cls.a_cached)
+        cls.addAttribute(cls.a_geo_cached)
+
+        cls.a_points_cached = numeric_attr_fn.create('pointsChached', 'pointsChached', om.MFnNumericData.kBoolean, 0)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_points_cached)
+
+        cls.a_brush_radius = numeric_attr_fn.create('brushRadius', 'brushRadius', om.MFnNumericData.kDouble, 1)
+        numeric_attr_fn.setMin(0.001)
+        numeric_attr_fn.setSoftMax(10)
+        numeric_attr_fn.setStorable(True)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        #  numeric_attr_fn.setHidden(True)
+        cls.addAttribute(cls.a_brush_radius)
 
         cls.a_num_spores = numeric_attr_fn.create('numSpores', 'numSpores', om.MFnNumericData.kInt, 1)
         numeric_attr_fn.setStorable(False)
@@ -322,82 +360,280 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_num_spores)
 
+        # node storage attributes
+        cls.a_position = typed_attr_fn.create('position', 'position', om.MFnData.kVectorArray, vect_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_position)
+
+        cls.a_rotation = typed_attr_fn.create('rotation', 'rotation', om.MFnData.kVectorArray, vect_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_rotation)
+
+        cls.a_scale = typed_attr_fn.create('scale', 'scale', om.MFnData.kVectorArray, vect_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_scale)
+
+        cls.a_instance_id = typed_attr_fn.create('instanceId', 'instanceId', om.MFnData.kIntArray, int_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_instance_id)
+
+        cls.a_visibility = typed_attr_fn.create('instanceVisibility', 'instanceVisibility', om.MFnData.kIntArray, int_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_visibility)
+
+        cls.a_normal = typed_attr_fn.create('normal', 'normal', om.MFnData.kVectorArray, vect_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_normal)
+
+        cls.a_tangent = typed_attr_fn.create('tangent', 'tangent', om.MFnData.kVectorArray, vect_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_tangent)
+
+        cls.a_u_coord = typed_attr_fn.create('uCoord', 'uCoord', om.MFnData.kDoubleArray, double_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_u_coord)
+
+        cls.a_v_coord = typed_attr_fn.create('vCoord', 'vCoord', om.MFnData.kDoubleArray, double_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_v_coord)
+
+        cls.a_poly_id = typed_attr_fn.create('polyId', 'polyId', om.MFnData.kIntArray, int_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_poly_id)
+
+        cls.a_color = typed_attr_fn.create('color', 'color', om.MFnData.kVectorArray, vect_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_color)
+
+        cls.a_unique_id = typed_attr_fn.create('uniqueId', 'uniqueId', om.MFnData.kIntArray, int_array_attr.create())
+        typed_attr_fn.setHidden(True)
+        typed_attr_fn.setStorable(True)
+        cls.addAttribute(cls.a_unique_id)
+
         cls.attributeAffects(cls.a_emit, cls.a_instance_data)
+        #  cls.attributeAffects(cls.in_mesh, cls.a_geo_cached)
 
     def __init__(self):
         ompx.MPxLocatorNode.__init__(self)
 
+    def isBounded(self):
+        return True
+
+    def boundingBox(self):
+        in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
+        mesh_fn = om.MFnDagNode(in_mesh)
+        return mesh_fn.boundingBox()
+
     def postConstructor(self):
+        """ called after node has been constructed. used to set things up """
 
-        # initialize point cache
-        #  self.cache = point_cache.PointCloud()
-
-        # write point cache to node attributes before saving the scene
-        #  self.save_callback = om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeSave, self.write_cache)
-        # kBeforeNew, kBeforeOpen kMayaExiting
-        #  callback = om.MNodeMessage.addNodePreRemovalCallback(self.thisMObject(), self.event)
         self.callbacks = om.MCallbackIdArray()
+        self.callbacks.append(om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeSave, self.write_points))
         self.callbacks.append(om.MNodeMessage.addNodePreRemovalCallback(self.thisMObject(), self.pre_destructor))
-        self.callbacks.append(om.MDGMessage.addConnectionCallback(self.connection_callback))
-        self.callbacks.append(om.MDGMessage.addNodeAddedCallback(self.node_added_callback, 'sporeNode'))
+        #  callback = om.MNodeMessage.addNodePreRemovalCallback(self.thisMObject(), self.event)
+        #  self.callbacks.append(om.MDGMessage.addConnectionCallback(self.connection_callback))
+        #  self.callbacks.append(om.MDGMessage.addNodeAddedCallback(self.node_added_callback, 'sporeNode'))
         #  self.callbacks.append(om.MDGMessage.addNodeAddedCallback(self.thisMObject(), self.node_added))
 
     def pre_destructor(self, *args):
-        print '__del__', args
+        """ called before node is deleted. used to clean stuff up """
+
         for i in xrange(self.callbacks.length()):
             om.MMessage().removeCallback(self.callbacks[i])
 
-    def connection_callback(self, *args):
-        #  print 'connection callback', args
-        pass
-
-    def node_added_callback(self, *args):
-        #  print 'node added ', args
-        pass
-
-    def write_cache(self, *args, **kwargs):
-        """ write the in-memory point cache to the node's attributes to
-        make sure we save all our points with the maya file """
-
-        print "WRITE CACHE", args, kwargs
-
     def compute(self, plug, data):
-        #  return None
-        print 'compute'
 
         this_node = self.thisMObject()
 
-        is_cached = data.inputValue(self.a_cached).asBool()
-        if not is_cached:
-            #  print 'CACHE!'
-            pass
-
+        # initialize instance data attribute
         if plug == self.a_instance_data:
+            self.initialize_instance_data(plug, data)
 
-            output = data.outputValue(plug)
+        # cache geometry
+        is_geo_cached = data.inputValue(self.a_geo_cached).asBool()
+        if not is_geo_cached:
 
-            #  if output.isGeneric(True, ):
-            array_attr_fn = om.MFnArrayAttrsData()
-            attr_array_obj = array_attr_fn.create()
+            # not yet implemented
+            is_geo_cached_handle = data.outputValue(self.a_geo_cached)
+            is_geo_cached_handle.setBool(True)
 
-            out_position = array_attr_fn.vectorArray('position')
-            out_scale = array_attr_fn.vectorArray('scale')
-            out_rotation = array_attr_fn.vectorArray('rotation')
-            out_id = array_attr_fn.intArray('objectIndex')
-            out_id = array_attr_fn.intArray('visibility')
 
-            normal = array_attr_fn.vectorArray('normal')
-            tangent = array_attr_fn.vectorArray('tangent')
-            u_coord = array_attr_fn.doubleArray('u_coord')
-            v_coord = array_attr_fn.doubleArray('v_coord')
-            poly_id = array_attr_fn.intArray('poly_id')
-            color = array_attr_fn.vectorArray('color')
-            unique_id = array_attr_fn.intArray('unique_id')
+    def initialize_instance_data(self, plug, data):
+        """ initialize the instance data attribute by
+        creating all arrays needed. read data from the storage attributes
+        and add it the instance data """
 
-            #  for i in xrange(10):
-            #      out_position.append(om.MVector(0, i, 0))
+        # create array attr
+        output = data.outputValue(plug)
+        array_attr_fn = om.MFnArrayAttrsData()
+        attr_array_obj = array_attr_fn.create()
 
-            output.setMObject(attr_array_obj)
+        out_position = array_attr_fn.vectorArray('position')
+        out_scale = array_attr_fn.vectorArray('scale')
+        out_rotation = array_attr_fn.vectorArray('rotation')
+        out_id = array_attr_fn.intArray('objectIndex')
+        out_visibility = array_attr_fn.intArray('visibility')
+        normal = array_attr_fn.vectorArray('normal')
+        tangent = array_attr_fn.vectorArray('tangent')
+        u_coord = array_attr_fn.doubleArray('u_coord')
+        v_coord = array_attr_fn.doubleArray('v_coord')
+        poly_id = array_attr_fn.intArray('poly_id')
+        color = array_attr_fn.vectorArray('color')
+        unique_id = array_attr_fn.intArray('unique_id')
 
+        # load points from stored attributes oand copy to instance data attr
+        # this should happen only once when the scene is loaded
+        is_point_cached = data.inputValue(self.a_points_cached).asBool()
+        if not is_point_cached:
+
+            vect_array_fn = om.MFnVectorArrayData()
+            int_array_fn = om.MFnIntArrayData()
+            double_array_fn = om.MFnDoubleArrayData()
+
+            position_data = data.outputValue(self.a_position).data()
+            vect_array_fn.setObject(position_data)
+            vect_array_fn.copyTo(out_position)
+
+            rotation_data = data.outputValue(self.a_rotation).data()
+            vect_array_fn.setObject(rotation_data)
+            vect_array_fn.copyTo(out_rotation)
+
+            scale_data = data.outputValue(self.a_scale).data()
+            vect_array_fn.setObject(scale_data)
+            vect_array_fn.copyTo(out_scale)
+
+            instance_id_data = data.outputValue(self.a_instance_id).data()
+            int_array_fn.setObject(instance_id_data)
+            int_array_fn.copyTo(out_id)
+
+            visibility_data = data.outputValue(self.a_visibility).data()
+            int_array_fn.setObject(visibility_data)
+            int_array_fn.copyTo(out_visibility)
+
+            normal_data = data.outputValue(self.a_normal).data()
+            vect_array_fn.setObject(normal_data)
+            vect_array_fn.copyTo(normal)
+
+            tangent_data = data.outputValue(self.a_tangent).data()
+            vect_array_fn.setObject(tangent_data)
+            vect_array_fn.copyTo(tangent)
+
+            u_cood_data = data.outputValue(self.a_u_coord).data()
+            double_array_fn.setObject(u_cood_data)
+            double_array_fn.copyTo(u_coord)
+
+            v_cood_data = data.outputValue(self.a_v_coord).data()
+            double_array_fn.setObject(v_cood_data)
+            double_array_fn.copyTo(v_coord)
+
+            poly_id_data = data.outputValue(self.a_poly_id).data()
+            int_array_fn.setObject(poly_id_data)
+            int_array_fn.copyTo(poly_id)
+
+            color_data = data.outputValue(self.a_color).data()
+            vect_array_fn.setObject(color_data)
+            vect_array_fn.copyTo(color)
+
+            unique_id_data = data.outputValue(self.a_unique_id).data()
+            int_array_fn.setObject(unique_id_data)
+            int_array_fn.copyTo(unique_id)
+
+            # set points cached to true
+            is_point_cached_handle = data.outputValue(self.a_points_cached)
+            is_point_cached_handle.setBool(True)
+
+        # set the instance data attribute
+        output.setMObject(attr_array_obj)
+
+    def write_points(self, *args, **kwargs):
+        """ write the instanceData attribute, that can't be saved with the
+        maya scene, to the node's storage attributes to make sure all points
+        are svaed with the maya file """
+
+        #  state = node_state.SporeState(self.thisMObject())
+        node_fn = om.MFnDependencyNode(self.thisMObject())
+        data_plug = node_fn.findPlug('instanceData')
+        data_obj = data_plug.asMObject()
+
+        array_attr_fn = om.MFnArrayAttrsData(data_obj)
+        vect_array_fn = om.MFnVectorArrayData()
+        int_array_fn = om.MFnIntArrayData()
+        double_array_fn = om.MFnDoubleArrayData()
+
+        # store position
+        position = array_attr_fn.vectorArray('position')
+        position_obj = vect_array_fn.create(position)
+        position_plug = node_fn.findPlug('position')
+        position_plug.setMObject(position_obj)
+
+        # store scale
+        scale = array_attr_fn.vectorArray('scale')
+        scale_obj = vect_array_fn.create(scale)
+        scale_plug = node_fn.findPlug('scale')
+        scale_plug.setMObject(scale_obj)
+
+        #store rotation
+        rotation = array_attr_fn.vectorArray('rotation')
+        rotation_obj = vect_array_fn.create(rotation)
+        rotation_plug = node_fn.findPlug('rotation')
+        rotation_plug.setMObject(rotation_obj)
+
+        # store instance id
+        instance_id = array_attr_fn.intArray('objectIndex')
+        instance_id_obj = int_array_fn.create(instance_id)
+        instance_id_plug = node_fn.findPlug('instanceId')
+        instance_id_plug.setMObject(instance_id_obj)
+
+        # store visibility
+        visibility = array_attr_fn.intArray('visibility')
+        visibility_obj = int_array_fn.create(visibility)
+        visibility_plug = node_fn.findPlug('visibility')
+        visibility_plug.setMObject(visibility_obj)
+
+        normal = array_attr_fn.vectorArray('normal')
+        normal_obj = vect_array_fn.create(normal)
+        normal_plug = node_fn.findPlug('normal')
+        normal_plug.setMObject(normal_obj)
+
+        tangent = array_attr_fn.vectorArray('tangent')
+        tangent_obj = vect_array_fn.create(tangent)
+        tangent_plug = node_fn.findPlug('tangent')
+        tangent_plug.setMObject(tangent_obj)
+
+        u_coord = array_attr_fn.doubleArray('u_coord')
+        u_coord_obj = double_array_fn.create(u_coord)
+        u_coord_plug = node_fn.findPlug('uCoord')
+        u_coord_plug.setMObject(u_coord_obj)
+
+        v_coord = array_attr_fn.doubleArray('v_coord')
+        v_coord_obj = double_array_fn.create(v_coord)
+        v_coord_plug = node_fn.findPlug('vCoord')
+        v_coord_plug.setMObject(v_coord_obj)
+
+        poly_id = array_attr_fn.intArray('poly_id')
+        poly_id_obj = int_array_fn.create(poly_id)
+        poly_id_plug = node_fn.findPlug('polyId')
+        poly_id_plug.setMObject(poly_id_obj)
+
+        color = array_attr_fn.vectorArray('color')
+        color_obj = vect_array_fn.create(color)
+        color_plug = node_fn.findPlug('color')
+        color_plug.setMObject(color_obj)
+
+        unique_id = array_attr_fn.intArray('unique_id')
+        unique_id_obj = int_array_fn.create(unique_id)
+        unique_id_plug = node_fn.findPlug('uniqueId')
+        unique_id_plug.setMObject(unique_id_obj)
 
 
