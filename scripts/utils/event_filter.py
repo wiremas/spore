@@ -1,21 +1,30 @@
+import maya.cmds as cmds
+import maya.OpenMayaUI as omui
+
 from shiboken2 import wrapInstance
 from PySide2.QtWidgets import QWidget
 from PySide2.QtCore import QObject, QEvent, Signal, Slot, QPoint, Qt
 from PySide2.QtGui import QKeyEvent
 
+import window_utils
 
-class ResizeEventFilter(QObject):
+
+class CanvasEventFilter(QObject):
     """ resize event
     object emits a resize_event when installed on widget """
 
     resize_event = Signal(QEvent)
+    enter_event = Signal(QEvent)
 
     def __init__(self):
-        super(ResizeEventFilter, self).__init__() #eventFilter(obj, event)
+        super(CanvasEventFilter, self).__init__() #eventFilter(obj, event)
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Resize:
             self.resize_event.emit(event)
+
+        if event.type() == QEvent.Enter:
+            self.enter_event.emit(event)
 
         return False
 
