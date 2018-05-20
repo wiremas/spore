@@ -75,10 +75,23 @@ class SporeState(object):
 
 
     def get_node_state(self):
+        """ fetch brush setting from the node and save it to the "state" dict """
+
+        # get selected item from node's textScrollList
+        sel = cmds.textScrollList('instanceList', q=True, si=True)
+        if sel:
+            object_index = [int(s.split(' ')[0].strip('[]:')) for s in sel]
+        else:
+            elements = cmds.textScrollList('instanceList', q=True, ai=True)
+            object_index = [int(e.split(' ')[0].strip('[]:')) for e in elements]
+
+        # get modes
         modes = ['place', 'spray', 'scale', 'align', 'move', 'id', 'remove']
         mode_id = cmds.getAttr('{}.contextMode'.format(self.node))
         align_modes = ['normal', 'world', 'object', 'stroke']
         align_id = cmds.getAttr('{}.alignTo'.format(self.node))
+
+        # save state
         self.state = {'mode': modes[mode_id],
                       'num_samples': cmds.getAttr('{}.numBrushSamples'.format(self.node)),
                       'min_distance': cmds.getAttr('{}.minDistance'.format(self.node)),
@@ -95,14 +108,8 @@ class SporeState(object):
                       'min_offset': cmds.getAttr('{}.minOffset'.format(self.node)),
                       'max_offset': cmds.getAttr('{}.maxOffset'.format(self.node)),
                       'min_id': cmds.getAttr('{}.minId'.format(self.node)),
-                      'max_id': cmds.getAttr('{}.maxId'.format(self.node))}
-
-        # get selected item from node's textScrollList
-        sel = cmds.textScrollList('instanceList', q=1, si=1)
-        if sel:
-            self.exclusive_paint = [int(s.split(' ')[0].strip('[]:')) for s in sel]
-        else:
-            self.exclusive_paint = []
+                      'max_id': cmds.getAttr('{}.maxId'.format(self.node)),
+                      'ids': object_index}
 
 
     def build_kd_tree(self, refresh_position=False):
