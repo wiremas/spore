@@ -130,8 +130,10 @@ def get_instanced_geo(spore_node):
     return instance_geo
 
 
-def get_instancer(spore_node):
-    """ the the instancer node connected to a spore node """
+def get_instancer(spore_node, as_string=True):
+    """ return the instancer node connected to a given spore node
+    :param spore_node:
+    :param as_string: if true return node name else return mObject """
 
     node_fn = get_dgfn_from_dagpath(spore_node)
     instance_plug = node_fn.findPlug('instanceData')
@@ -143,10 +145,30 @@ def get_instancer(spore_node):
         if instance_plug.connectedTo(plugs, False, True):
             node = plugs[0].node()
             node_fn = om.MFnDagNode(node)
-            instancer_node = node_fn.name()
-            return instancer_node
+            if as_string:
+                return node_fn.name()
+            else:
+                return node
 
+def connect_to_instancer(transform_node, spore_node):
+    """ connect a transform's matrix attribute to a instancer node
+    that is connected to the given spore node """
 
+    # get instancer's inputHierarchy plug
+    instancer_node = get_instancer(spore_node, False)
+    dg_fn = om.MFnDependencyNode(instancer_node)
+    in_plug = dg_fn.findPlug('inputHierarchy')
+
+    # get transform's matrix plug
+    transform_node = get_mobject_from_name(transform_node)
+    dag_fn = om.MFnDagNode(transform_node)
+    matrix_plug = dag_fn.findPlug('matrix')
+
+    # get first free plug and connect
+    plug_id = in_plug.numElements() + 1
+    dag_mod = om.MDagModifier()
+    dag_mod.connect(matrix_plug, in_plug.elementByLogicalIndex(plug_id))
+    dag_mod.doIt()
 
 def get_connected_in_mesh(spore_node, as_string=True):
     """ get the full path name or mDagPath of the shape node connected
