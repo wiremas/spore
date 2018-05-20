@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 import maya.OpenMaya as om
 
 from PySide2.QtGui import QPainter, QPen, QPainterPath
-from PySide2.QtCore import Qt, QObject, Signal, Slot, QEvent, QPointF
+from PySide2.QtCore import Qt, QObject, Signal, Slot, QEvent, QPointF, QPoint
 from PySide2.QtWidgets import QWidget, QLabel, QGridLayout
 
 import window_utils
@@ -23,7 +23,7 @@ class Canvas(QWidget):
         #  self.setAttribute(Qt.WA_PaintOnScreen)
         #  self.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        self.resize_event_filter = event_filter.ResizeEventFilter()
+        self.resize_event_filter = event_filter.CanvasEventFilter()
         self.install_event_filter()
         self.resize()
         self.show()
@@ -46,12 +46,18 @@ class Canvas(QWidget):
         wdg_size = view_wdg.rect()
         wdg_pos = view_wdg.pos()
         abs_pos = view_wdg.mapToGlobal(wdg_pos)
-        self.setGeometry(abs_pos.x(), abs_pos.y(),
-                         wdg_size.width(), wdg_size.height())
+        self.setGeometry(abs_pos.x(), abs_pos.y(), wdg_size.width(), wdg_size.height())
+
+    @Slot(QEvent)
+    def set_focus(self):
+        """ set focuts to the panel under the cursor """
+
+        panel = cmds.getPanel(underPointer=True)
+        cmds.setFocus(panel)
 
     def __del__(self):
-      print 'carbage collect canvas object'
-      self.remove_event_filter()
+        """ remove event filter when the canvas is deleted """
+        self.remove_event_filter()
 
 
 """ -------------------------------------------------------------------- """
@@ -69,6 +75,10 @@ class CircularBrush(Canvas):
         self.brush_state = brush_state
 
     def paintEvent(self, event):
+
+        super(CircularBrush, self).paintEvent(event)
+
+        # draw brush
         if hasattr(self, 'brush_state') and self.brush_state.draw:
             painter = QPainter()
             shapes = self.create_brush_shape()
@@ -84,10 +94,11 @@ class CircularBrush(Canvas):
                 #  painter.setRenderHint(painter.HighQualityAnti)
                 painter.begin(self)
 
-                painter.setPen(QPen(Qt.yellow, 1))
+                painter.setPen(QPen(Qt.red, 1))
                 painter.drawPath(path)
 
             painter.end()
+
 
     def create_brush_shape(self):
         """ generate the shape of the brush based on the brush state """
@@ -122,7 +133,7 @@ class CircularBrush(Canvas):
             # get circle points
             theta = math.radians(360 / 20)
             shape = []
-            for i in xrange(20 + 1):
+            for i in xrange(40 + 1):
                 rot = om.MQuaternion(theta * i, nrm)
                 rtan = tan.rotateBy(rot)
                 pos = pnt + (rtan * self.brush_state.radius)
@@ -143,21 +154,22 @@ class DotBrush(Canvas):
     def paintEvent(self, event):
         if hasattr(self, 'brush_state') and self.brush_state.draw:
             painter = QPainter()
-            shapes = self.create_brush_dots()
-            for shape in shapes:
-                shape = [QPointF(point[0], point[1]) for point in shape]
-
-                path = QPainterPath()
-                start_pos = shape.pop(0)
-                path.moveTo(start_pos)
-                [path.lineTo(point) for point in shape]
-
-                painter.setRenderHint(painter.Antialiasing)
-                #  painter.setRenderHint(painter.HighQualityAnti)
-                painter.begin(self)
-
-                painter.setPen(QPen(Qt.yellow, 1))
-                painter.drawPath(path)
+            position = self.create_brush_dots()
+            painter.drawPoint(position)
+            #  for shape in shapes:
+            #      shape = [QPointF(point[0], point[1]) for point in shape]
+            #
+            #      path = QPainterPath()
+            #      start_pos = shape.pop(0)
+            #      path.moveTo(start_pos)
+            #      [path.lineTo(point) for point in shape]
+            #
+            #      painter.setRenderHint(painter.Antialiasing)
+            #      #  painter.setRenderHint(painter.HighQualityAnti)
+            #      painter.begin(self)
+            #
+            #      painter.setPen(QPen(Qt.yellow, 1))
+            #      painter.drawPath(path)
 
             painter.end()
 
@@ -180,10 +192,10 @@ class DotBrush(Canvas):
             #  if self.brush_state.drag_mode:
             pos_x, pos_y = window_utils.world_to_view(pnt)
 
-            shapes = []
-            shapes.append([(pos_x - 15, pos_y - 15), (pos_x + 15, pos_y + 15)])
-            shapes.append([(pos_x - 15, pos_y + 15), (pos_x + 15, pos_y - 15)])
-            return shapes
+            #shapes = []
+            #shapes.append([(pos_x - 15, pos_y - 15), (pos_x + 15, pos_y + 15)])
+            #shapes.append([(pos_x - 15, pos_y + 15), (pos_x + 15, pos_y - 15)])
+            return QPoint(pos_x, pos_y) #shapes
 
 
             # get point at normal and tangent

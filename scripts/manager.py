@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import collections
 
@@ -14,6 +15,7 @@ from PySide2.QtWidgets import QAction
 import manager_ui
 import node_utils
 reload(manager_ui)
+import message_utils
 
 
 manager = None
@@ -25,6 +27,7 @@ class SporeManager(object):
         self.wdg_tree = collections.defaultdict(list)
 
         self.ui = manager_ui.ManagerWindow()
+        self.io = message_utils.IOHandler()
         self.initialize_ui()
         self.connect_signals()
 
@@ -41,7 +44,6 @@ class SporeManager(object):
 
         spore_node, instancer = cmds.spore()
         spore_transform = cmds.listRelatives(spore_node, p=True, f=True)[0]
-        print 'rn', cmds.rename(spore_node, '{}SporeShape'.format(name))
         cmds.rename(spore_transform, '{}SporeTransform'.format(name))
         cmds.rename(instancer, '{}SporeInstancer'.format(name))
 
@@ -79,9 +81,11 @@ class SporeManager(object):
                 # hook up some signals
                 spore_wdg.clicked.connect(self.item_clicked)
                 spore_wdg.context_requested.connect(self.context_request)
-                spore_wdg.view_instancer.connect(self.toggle_view)
-                spore_wdg.view_bounding_box.connect(self.toggle_view)
-                spore_wdg.view_bounding_boxes.connect(self.toggle_view)
+                spore_wdg.view_toggled.connect(self.toggle_view)
+                spore_wdg.name_changed.connect(self.name_changed)
+                #  spore_wdg.view_instancer.connect(self.toggle_view)
+                #  spore_wdg.view_bounding_box.connect(self.toggle_view)
+                #  spore_wdg.view_bounding_boxes.connect(self.toggle_view)
                 #  spore_wdg.view_hide.connect(self.toggle_view)
 
 
@@ -139,12 +143,38 @@ class SporeManager(object):
 
     @Slot(QObject, int)
     def toggle_view(self, widget, mode):
-        print 'toggle'
-        mesh_name = widget.long_name
-        if cmds.objExists(mesh_name):
-            instancer = node_utils.get_instancer(mesh_name)
+        """ triggered by one of the spore widget's display toggle buttons
+        :param widget: the source of the signal
+        :param mode: 1==geometry, 2==bounding box, 3==bounding boxes """
+
+        node_name = widget.long_name
+        if cmds.objExists(node_name):
+            instancer = node_utils.get_instancer(node_name)
             if instancer:
-                cmds.setAttr('{}.levelOfDetail'.format(instancer))
+                cmds.setAttr('{}.levelOfDetail'.format(instancer), mode)
+
+    @Slot(QObject, str)
+    def name_changed(self, widget, name):
+        """ triggered by one of the spore widgets when the user
+        requests a name change
+        :param widget: the source of the signal
+        :param name: the new name """
+
+        node_name = widget.long_name
+        if cmds.objExists(node_name):
+            if re.match('^[A-Za-z0-9_-]*$', name) and not name[0].isdigit():
+                transform = cmds.listRelatives(node_name, p=True, f=True)[0]
+                instancer = node_utils.get_instancer(node_name)
+                cmds.rename(instancer, '{}Instancer'.format(name))
+                cmds.rename(node_name, '{}Shape'.format(name))
+                cmds.rename(transform, name)
+
+            else:
+                self.io.set_message('Invalid Name: Use only A-Z, a-z, 0-9, -, _', 2)
+                return
+
+        self.refresh_spore()
+
 
 
     @Slot(QAction)

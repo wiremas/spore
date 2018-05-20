@@ -263,8 +263,8 @@ class GeoItem(TreeItemWidget):
 
         self.item_lay.setColumnStretch(3, 1)
 
-        self.view_buttons = DisplayButtons(self)
-        self.item_lay.addWidget(self.view_buttons, 0, 4, 1, 1)
+        #  self.view_buttons = DisplayButtons(self)
+        #  self.item_lay.addWidget(self.view_buttons, 0, 4, 1, 1)
 
     def connect_signals(self):
         self.expand_btn.toggled.connect(self.toggle_children)
@@ -280,10 +280,8 @@ class SporeItem(TreeItemWidget):
     clicked = Signal(QObject, QEvent)
     double_clicked = Signal()
     context_requested = Signal(QObject, QAction)
-    view_instancer = Signal(QObject, int)
-    view_bounding_box = Signal(QObject, int)
-    view_bounding_boxes = Signal(QObject, int)
-    view_hide = Signal(QObject)
+    view_toggled = Signal(QObject, int)
+    name_changed = Signal(QObject, str)
 
     def __init__(self, name, parent=None):
         super(SporeItem, self).__init__(name, parent)
@@ -294,17 +292,7 @@ class SporeItem(TreeItemWidget):
     def build_spore_ui(self):
 
         self.item_wdg.setFrameStyle(QFrame.Raised | QFrame.StyledPanel)
-        #  self.item_wdg.setContentsMargins(25, 0, 0, 0)
-        #### self.item_wdg.setStyleSheet("QFrame { background-color: rgb(75,75,75);}")
         self.setStyleSheet("background-color: rgb(68,68,68);")
-
-        #  #  self.expand_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
-        #  self.item_lay.addWidget(self.expand_btn, 0, 0, 1, 1)
-        #  self.item_lay.spacer()
-        #  self.item_lay.setSpacing(10) #, 0, 0, 1, 1)
-        #  self.item_lay.setColumnStretch(0, 2)
-        #  self.item_lay.setVerticalSpacing(20)
-
 
         pixmap = QPixmap(':/out_particle.png')
         icon_lbl = QLabel()
@@ -314,7 +302,9 @@ class SporeItem(TreeItemWidget):
 
         self.target_lbl = QLabel(self.name)
         self.item_lay.addWidget(self.target_lbl, 0, 2, 1, 1)
+
         self.target_edt = QLineEdit(self.item_wdg)
+        self.target_edt.setStyleSheet("background-color: rgb(68,68,68);")
         self.target_edt.setMinimumWidth(180)
         self.target_edt.setVisible(False)
         self.item_lay.addWidget(self.target_edt, 0, 2, 1, 1)
@@ -325,26 +315,30 @@ class SporeItem(TreeItemWidget):
         self.item_lay.addWidget(self.view_buttons, 0, 3, 1, 1)
 
     def connect_signals(self):
-        self.view_buttons.view_instancer.connect(self.view_instancer.emit(self, int(0)))
-        self.view_buttons.view_bounding_box.connect(self.view_bounding_box.emit(self, int(1)))
-        self.view_buttons.view_bounding_boxes.connect(self.view_bounding_boxes.emit(self, int(2)))
+        self.view_buttons.view_instancer.connect(lambda: self.toggle_view(0))
+        self.view_buttons.view_bounding_box.connect(lambda: self.toggle_view(2))
+        self.view_buttons.view_bounding_boxes.connect(lambda: self.toggle_view(1))
         #  self.view_buttons.view_hide.connect(self.view_hide.emit(self))
 
+        #  self.target_edt.returnPressed.connect(self.change_name)
+        self.target_edt.editingFinished.connect(self.change_name)
+
     def mousePressEvent(self, event):
+        """ click event to select / deselect widgets """
 
         if event.button() == Qt.LeftButton:
             if self.is_selected:
                 self.deselect()
             else:
                 self.select()
-
             self.clicked.emit(self, event)
 
-
     def mouseDoubleClickEvent(self, event):
-        self.target_lbl.setVisible(True)
-        print 'double click'
+        """ double click event to enter rename context """
 
+        self.target_lbl.setVisible(False)
+        self.target_edt.setVisible(True)
+        self.target_edt.setFocus()
 
     def contextMenuEvent(self, event):
 
@@ -370,11 +364,13 @@ class SporeItem(TreeItemWidget):
         self.context_requested.emit(self, action)
 
     def deselect(self):
+        """ deselect widget """
 
         self.is_selected = False
         self.setStyleSheet("background-color: rgb(68,68,68);")
 
     def select(self):
+        """ select widget """
 
         self.is_selected = True
         self.setStyleSheet("background-color: rgb(21,60,97);")
@@ -387,6 +383,19 @@ class SporeItem(TreeItemWidget):
             self.deselect()
 
         return self.is_selected
+
+    def toggle_view(self, state):
+        self.view_toggled.emit(self, state)
+
+    def change_name(self):
+        """ trigger for name changed event """
+
+        name = self.target_edt.text()
+        if name:
+            self.name_changed.emit(self, name)
+
+        self.target_edt.setVisible(False)
+        self.target_lbl.setVisible(True)
 
 
 class DisplayButtons(QWidget):
@@ -431,13 +440,13 @@ class DisplayButtons(QWidget):
         self.bb_view_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
         view_btn_lay.addWidget(self.bb_view_btn)
 
-        self.disable_view_btn = QPushButton()
-        self.disable_view_btn.setIcon(QIcon(QPixmap(':/error.png')))
-        self.disable_view_btn.setFlat(True)
-        self.disable_view_btn.setCheckable(True)
-        self.disable_view_btn.setFixedWidth(25)
-        self.disable_view_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
-        view_btn_lay.addWidget(self.disable_view_btn)
+        #  self.disable_view_btn = QPushButton()
+        #  self.disable_view_btn.setIcon(QIcon(QPixmap(':/error.png')))
+        #  self.disable_view_btn.setFlat(True)
+        #  self.disable_view_btn.setCheckable(True)
+        #  self.disable_view_btn.setFixedWidth(25)
+        #  self.disable_view_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        #  view_btn_lay.addWidget(self.disable_view_btn)
 
         self.connect_signals()
 
@@ -445,7 +454,7 @@ class DisplayButtons(QWidget):
         self.instance_view_btn.clicked.connect(lambda: self.toggle_view('instance'))
         self.bb_view_btn.clicked.connect(lambda: self.toggle_view('boundingbox'))
         self.bbs_view_btn.clicked.connect(lambda: self.toggle_view('boundingboxes'))
-        self.disable_view_btn.clicked.connect(lambda: self.toggle_view('disable'))
+        #  self.disable_view_btn.clicked.connect(lambda: self.toggle_view('disable'))
 
     def toggle_view(self, mode):
         """ toggle between diffenrent view modes
@@ -453,11 +462,10 @@ class DisplayButtons(QWidget):
 
         self.viewmode = mode
         if mode == 'instance':
-            self.view_bounding_boxes.emit()
+            #  self.view_bounding_boxes.emit()
             self.bb_view_btn.setChecked(False)
             self.bbs_view_btn.setChecked(False)
             self.view_instancer.emit()
-            print 'emit inst'
 
         elif mode == 'boundingbox':
             self.instance_view_btn.setChecked(False)
