@@ -309,8 +309,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def align_action(self, flag):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
-        self.set_cache_length(len(neighbour))
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.state['ids'])
+        if neighbour:
+            self.set_cache_length(len(neighbour))
+        else:
+            return
 
         for i, index in enumerate(neighbour):
             rotation = self.node_state.rotation[index]
@@ -326,10 +329,13 @@ class SporeToolCmd(ompx.MPxToolCommand):
         """ """
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
-        average = self.node_state.get_rotation_average(neighbour)
-        average = om.MVector(average[0], average[1], average[2])
-        self.set_cache_length(len(neighbour))
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.state['ids'])
+        if neighbour:
+            average = self.node_state.get_rotation_average(neighbour)
+            average = om.MVector(average[0], average[1], average[2])
+            self.set_cache_length(len(neighbour))
+        else:
+            return
 
         for i, index in enumerate(neighbour):
             rotation = self.node_state.rotation[index]
@@ -355,8 +361,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
 
-        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
-        self.set_cache_length(len(neighbour))
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.state['ids'])
+        if neighbour:
+            self.set_cache_length(len(neighbour))
+        else:
+            return
 
         for i, index in enumerate(neighbour):
             value = self.node_state.scale[index]
@@ -373,10 +382,13 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
-        self.set_cache_length(len(neighbour))
-        average = self.node_state.get_scale_average(neighbour)
-        amount = self.node_state.state['scale_amount']
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.state['ids'])
+        if neighbour:
+            self.set_cache_length(len(neighbour))
+            average = self.node_state.get_scale_average(neighbour)
+            amount = self.node_state.state['scale_amount']
+        else:
+            return
 
         for i, index in enumerate(neighbour):
             falloff_weight = self.get_falloff_weight(self.node_state.position[index])
@@ -395,9 +407,12 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def random_scale_action(self, flag):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
-        self.set_cache_length(len(neighbour))
-        amount = self.node_state.state['scale_amount']
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.state['ids'])
+        if neighbour:
+            self.set_cache_length(len(neighbour))
+            amount = self.node_state.state['scale_amount']
+        else:
+            return
 
 
         for i, index in enumerate(neighbour):
@@ -430,17 +445,18 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def index_action(self, flag):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
-        self.set_cache_length(len(neighbour))
-        min_id = self.node_state.state['min_id']
-        max_id = self.node_state.state['max_id']
+        neighbour = self.node_state.get_closest_points(position, radius)
+        if neighbour:
+            self.set_cache_length(len(neighbour))
+        else:
+            return
 
-        for i, index in enumerate(neighbour):
-            if min_id == max_id:
-                new_id = min_id
-            else:
-                new_id = np.random.randint(min_id, max_id + 1)
-            self.instance_id.set(new_id, i)
+        for i, neighbour_id in enumerate(neighbour):
+            #  object_index = self.node_state.instance_id[neighbour_id]
+            #  if object_index not in self.node_state.state['ids']:
+            object_index = random.choice(self.node_state.state['ids'])
+
+            self.instance_id.set(object_index, i)
 
         self.node_state.set_points(neighbour, instance_id=self.instance_id)
         self.node_state.set_state()
@@ -456,8 +472,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
-        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.exclusive_paint)
-        self.set_cache_length(len(neighbour))
+        neighbour = self.node_state.get_closest_points(position, radius, self.node_state.state['ids'])
+        if neighbour:
+            self.set_cache_length(len(neighbour))
+        else:
+            return
 
         for i, index in enumerate(neighbour):
             self.visibility.set(0, i)
@@ -654,19 +673,15 @@ class SporeToolCmd(ompx.MPxToolCommand):
         return position + normal * initial_offset
 
     def get_instance_id(self, flag, index=0):
-        """ the the instance id for the point at the given index """
+        """ the instance id for the point at the given index """
 
         # when we in drag mode we want to maintain old instance id value
         if self.brush_state.shift_mod and flag != SporeToolCmd.k_click:
             instance_id = self.initial_id[index]
-
-        #  add exclusive paint
-        #  elif self.node_state.exclusive_paint:
-        #      ins
+            print 'drag id', instance_id
 
         else:
-            instance_id = random.randint(self.node_state.state['min_id'],
-                                         self.node_state.state['max_id'])
+            instance_id = random.choice(self.node_state.state['ids'])
             self.initial_id.set(instance_id, index)
 
         return instance_id
@@ -778,7 +793,8 @@ class SporeContext(ompx.MPxContext):
 
         # set up canvas for drawing
         if self.node_state.state['mode'] == 'place': #'place':
-            self.canvas = canvas.DotBrush(self.state)
+            self._setCursor(omui.MCursor.crossHairCursor)
+            #  self.canvas = canvas.DotBrush(self.state)
         else:
             self.canvas = canvas.CircularBrush(self.state)
 
@@ -837,9 +853,11 @@ class SporeContext(ompx.MPxContext):
                                      self.state.last_position[2])
                 stroke_dir = pos - last_pos
 
-                self.state.stroke_direction = (stroke_dir[0],
-                                               stroke_dir[1],
-                                               stroke_dir[2])
+                # stabilize by taking only vectors with a certain length
+                if stroke_dir.length() >= self.state.radius * 0.01:
+                    self.state.stroke_direction = (stroke_dir[0],
+                                                stroke_dir[1],
+                                                stroke_dir[2])
 
                 self.state.last_position = position
 
@@ -847,7 +865,8 @@ class SporeContext(ompx.MPxContext):
             self.state.draw = False
 
         #  redraw after coursor has been move
-        self.canvas.update()
+        if self.canvas:
+            self.canvas.update()
 
     @Slot(QPoint)
     def clicked(self, position):
@@ -863,7 +882,7 @@ class SporeContext(ompx.MPxContext):
 
             #  instanciate the tool command
             self.create_tool_command()
-            if not self.state.meta_mod:
+            if self.state.meta_mod is False or (self.state.meta_mod and self.state.shift_mod): # and self.state.shift_mod is False:
                 self.tool_cmd.redoIt()
 
 
@@ -917,7 +936,8 @@ class SporeContext(ompx.MPxContext):
     @Slot()
     def leave(self):
         self.state.draw = False
-        self.canvas.update()
+        if self.canvas:
+            self.canvas.update()
 
 
     """ -------------------------------------------------------------------- """
@@ -927,32 +947,38 @@ class SporeContext(ompx.MPxContext):
     @Slot()
     def ctrl_pressed(self):
         self.state.ctrl_mod = True
-        self.canvas.update()
+        if self.canvas:
+            self.canvas.update()
 
     @Slot()
     def ctrl_released(self):
         self.state.ctrl_mod = False
-        self.canvas.update()
+        if self.canvas:
+            self.canvas.update()
 
     @Slot()
     def meta_pressed(self):
         self.state.meta_mod = True
-        self.canvas.update()
+        if self.canvas:
+            self.canvas.update()
 
     @Slot()
     def meta_released(self):
         self.state.meta_mod = False
-        self.canvas.update()
+        if self.canvas:
+            self.canvas.update()
 
     @Slot()
     def shift_pressed(self):
         self.state.shift_mod = True
-        self.canvas.update()
+        if self.canvas:
+            self.canvas.update()
 
     @Slot()
     def shift_released(self):
         self.state.shift_mod = False
-        self.canvas.update()
+        if self.canvas:
+            self.canvas.update()
 
     @Slot()
     def b_pressed(self):
@@ -988,7 +1014,7 @@ class SporeContext(ompx.MPxContext):
         cam_node_fn = node_utils.get_dgfn_from_dagpath(cam_dag.fullPathName())
         cam_coi = cam_node_fn.findPlug('centerOfInterest').asDouble()
 
-        step = delta_x * (cam_coi * -0.025) # TODO - finetune static factor for different scene sizes!
+        step = delta_x * (cam_coi * -0.01)
         if (self.state.radius + step) >= 0.01:
             self.state.radius += step
 
