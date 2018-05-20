@@ -12,6 +12,7 @@ from shiboken2 import wrapInstance
 
 import window_utils
 import node_utils
+import message_utils
 #  import navigator_ctrl
 reload(window_utils)
 #  reload(navigator_ctrl)
@@ -25,6 +26,7 @@ class AEsporeNodeTemplate(AETemplate):
 
         self._node = node
         self.callbacks = om.MCallbackIdArray()
+        self.io = message_utils.IOHandler()
         self.navigator = None
         self.context = None
 
@@ -71,7 +73,12 @@ class AEsporeNodeTemplate(AETemplate):
 
     def build_ui(self):
 
-            # brush properties
+        # instance source
+        self.beginLayout('Instanced Objects', collapse=0)
+        self.callCustom(self.add_instance_list, self.update_instance_list)
+        self.endLayout()
+
+        # brush properties
         self.beginLayout('Brush', collapse=0)
         self.callCustom(self.add_brush_btn, self.update_brush_btn, 'contextMode')
         self.addControl('brushRadius', label='Radus')
@@ -97,9 +104,9 @@ class AEsporeNodeTemplate(AETemplate):
         self.addSeparator()
         self.addControl('minOffset', label='Min Offset')
         self.addControl('maxOffset', label='Max Offset')
-        self.addSeparator()
-        self.addControl('minId', label='Min Id', changeCommand=lambda _: self.index_cc('min'))
-        self.addControl('maxId', label='Max Id', changeCommand=lambda _: self.index_cc('max'))
+        #  self.addSeparator()
+        #  self.addControl('minId', label='Min Id', changeCommand=lambda _: self.index_cc('min'))
+        #  self.addControl('maxId', label='Max Id', changeCommand=lambda _: self.index_cc('max'))
         #  self.addSeparator()
         #  self.addControl('usePressureMapping', label='Use Pen Pressure', changeCommand=self.use_pressure_cc)
         #  self.addControl('pressureMapping', label='Pessure Mapping')
@@ -122,12 +129,10 @@ class AEsporeNodeTemplate(AETemplate):
         self.addControl('minSlope', 'Min Slope')
         self.addControl('maxSlope', 'Max Slope')
         self.endLayout()
-        self.callCustom(self.add_emit_btn, self.update_emit_btn, "emit" )
+        self.beginLayout('Geo Cache', collapse=1)
+        self.addControl('geoCached', label='Geometry Cached')
         self.endLayout()
-
-        # instance source
-        self.beginLayout('Instanced Objects', collapse=0)
-        self.callCustom(self.add_instance_list, self.update_instance_list)
+        self.callCustom(self.add_emit_btn, self.update_emit_btn, "emit" )
         self.endLayout()
 
         # I/O
@@ -156,42 +161,70 @@ class AEsporeNodeTemplate(AETemplate):
         if instanced_geo:
             instanced_geo = ['[{}]: {}'.format(i, name) for i, name in enumerate(instanced_geo)]
         else:
-            instanced_geo = ['No source geometry selected']
+            return
+            #  instanced_geo = ['No source objects selected']
 
-        cmds.text(l='Select item(s) to activate "Exclusive paint":', align='left')
-        cmds.textScrollList('instanceList', allowMultiSelection=True,
-                            append=instanced_geo, height=100, aas=True)
 
-        cmds.rowLayout(nc=2, adjustableColumn=2)
-        cmds.button('addInstanceBtn', l='Add', c=pm.Callback(self.add_instance))
-        cmds.button('removeInstanceBtn', l='Remove', c=pm.Callback(self.remove_instance))
-        cmds.setParent('..')
+        form = cmds.formLayout()
+        help_lbl = cmds.text(l='Select item(s) to specify an index', align='left')
+        scroll_list = cmds.textScrollList('instanceList', ams=True, append=instanced_geo)
+        add_btn = cmds.symbolButton('addInstanceBtn', width=30, i='UVTBAdd.png', c=pm.Callback(self.add_instance))
+        rm_btn = cmds.symbolButton('removeInstanceBtn', width=30, i='UVTBRemove.png', c=pm.Callback(self.remove_instance))
+        cmds.formLayout(form, e=True, attachForm=[(help_lbl, 'left', 2),
+                                                  (help_lbl, 'right', 2),
+                                                  (help_lbl, 'top', 0),
+                                                  (add_btn, 'right', 2),
+                                                  (add_btn, 'top', 17),
+                                                  (rm_btn, 'top', 45),
+                                                  (rm_btn, 'right', 2),
+                                                  (scroll_list, 'right', 35),
+                                                  (scroll_list, 'top', 17),
+                                                  (scroll_list, 'left', 2),
+                                                  (scroll_list, 'bottom', 2)],
+                        height=115)
 
     def update_instance_list(self, *args):
 
         instanced_geo = node_utils.get_instanced_geo(self._node)
-        if instanced_geo:
-            instanced_geo = ['[{}]: {}'.format(i, name.split('|')[-1]) for i, name in enumerate(instanced_geo)]
-        else:
-            instanced_geo = ['No source geometry selected']
+        #  if instanced_geo:
+        instanced_geo = ['[{}]: {}'.format(i, name) for i, name in enumerate(instanced_geo)]
+        #  else:
+        #      instanced_geo = ['No source geometry selected']
 
         cmds.textScrollList('instanceList', e=1, removeAll=True)
         cmds.textScrollList('instanceList', e=1, append=instanced_geo)
 
     def add_instance(self):
+        """ add a source to the instancer and the sporeNode """
+
         selection = cmds.ls(sl=True, l=True)
         spore_node = selection.pop(-1)
 
         num_items = cmds.textScrollList('instanceList', numberOfItems=True, q=True)
-        #  items = cmds.textScrollList('instanceList', q=True, ai=True)
+        items = cmds.textScrollList('instanceList', q=True, ai=True)
+        instances = node_utils.get_instanced_geo(self._node)
+
         for i, obj in enumerate(selection):
-            # TODO - connect to instancer or continue if nothing to add
-            item_str = '[{}]: {}'.format(i + num_items, obj)
-            cmds.textScrollList('instanceList', e=1, append=item_str)
+            # TODO - check if object type is valid
+            if obj not in instances:
+                obj_name = '[{}]: {}'.format(i + num_items, obj)
+                cmds.textScrollList('instanceList', e=1, append=obj_name)
+                node_utils.connect_to_instancer(obj, self._node)
 
     def remove_instance(self):
         selection = cmds.textScrollList('instanceList', q=1, selectItem=True)
-        print 'remove', selection
+        instancer = node_utils.get_instancer(self._node)
+
+        if selection:
+            for item in selection:
+                obj_name = item.split(' ')[-1]
+                connections = cmds.listConnections(obj_name, instancer, p=True, d=True, s=False)
+                connection = [c for c in connections if c.split('.')[0] == instancer]
+                for connection in connections:
+                    if connection.split('.')[0] == instancer:
+                        cmds.disconnectAttr('{}.matrix'.format(obj_name), connection)
+
+        self.update_instance_list()
 
     # ------------------------------------------------------------------------ #
     # emit button
@@ -248,6 +281,11 @@ class AEsporeNodeTemplate(AETemplate):
         @param attr: holds the current node and attribute name
         @param index: the index of the child attr in the combobox """
 
+        # check if there are any source objects
+        if not cmds.textScrollList('instanceList', q=True, ai=True):
+            self.io.set_message('No source objects selected', 0)
+            return
+
         cmds.setAttr(attr, index)
         attr_name = attr.split('.')[-1]
         node_name = attr.split('.')[0]
@@ -258,18 +296,18 @@ class AEsporeNodeTemplate(AETemplate):
                        'numBrushSamples', 'alignTo', 'minRotation',
                        'maxRotation', 'uniformScale', 'minScale',
                        'maxScale', 'scaleFactor', 'scaleAmount',
-                       'minOffset', 'maxOffset', 'minId', 'maxId',
+                       'minOffset', 'maxOffset',
                        'usePressureMapping', 'pressureMapping',
                        'minPressure', 'maxPressure')
         p_map = cmds.getAttr('{}.usePressureMapping'.format(self._node))
-        dim_ctrl = {                #    rad    minD,  foff,   stren,  numS,   aliTo   minR,   maxR,   uniS    minS,   maxS,   sFac,   sAmou,  minO,   maxO,   minI,   maxI,   pre,    map,    minP,   maxP
-                    'place':            (False, True,  False,  True,   False,  True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
-                    'spray':            (True,  True,  False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   True,   True,   p_map,  p_map,  p_map),
-                    'scale':            (True,  False, True,   False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'align':            (True,  False, True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'move':             (True,  False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'id':               (True,  False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   True,   False,  p_map,  p_map),
-                    'remove':           (True,  False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False),
+        dim_ctrl = {                #    rad    minD,  foff,   stren,  numS,   aliTo   minR,   maxR,   uniS    minS,   maxS,   sFac,   sAmou,  minO,   maxO,   pre,    map,    minP,   maxP
+                    'place':            (False, True,  False,  True,   False,  True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
+                    'spray':            (True,  True,  False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
+                    'scale':            (True,  False, True,   False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   False,  False,  True,   False,  p_map,  p_map),
+                    'align':            (True,  False, True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    'move':             (True,  False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    'id':               (True,  False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
+                    'remove':           (True,  False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False),
                     }
 
         #  dim controls
