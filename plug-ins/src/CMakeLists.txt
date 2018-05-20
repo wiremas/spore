@@ -1,6 +1,6 @@
 set(SOURCE_FILES
-    "ptcNode.h"
-    "ptcTransform.cpp"
+    "spore.h"
+    "sporeLocator.cpp"
 )
 
 find_package(Maya REQUIRED)
