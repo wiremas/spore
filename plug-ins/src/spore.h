@@ -1,5 +1,5 @@
-#include <QtGui/QPushButton>
-#include <QtGui/QDialog>
+// #include <QtGui/QPushButton>
+// #include <QtGui/QDialog>
 // #include <qdatastream.h>
 
 #include <maya/MIOStream.h>
@@ -43,11 +43,11 @@
 
 
 
-class ptcNode : public MPxLocatorNode
+class sporeLocator : public MPxLocatorNode
 {
 public:
-                            ptcNode() {};
-    virtual				    ~ptcNode() {};
+                            sporeLocator() {};
+    virtual				    ~sporeLocator() {};
 
     virtual MStatus		    compute( const MPlug& plug, MDataBlock& data );
     // virtual bool            isBounded() const;
@@ -65,94 +65,52 @@ public:
     static  MString         drawRegistrantId;
     static  MString         drawDbClassification;
 
+
     // input attributes
-    static  MObject         inMesh;
-    static  MObject         aEmitRequest;
-    static  MObject         aInputPoints;
-
-    // node attributes
-    static  MObject         aNumSamples;
-    static  MObject         aNumInstances;
-    static  MObject         aPointVisibility;
-    static  MObject         aDisplaySize;
-    static  MObject         aBrushRadius;
-
+    static  MObject         aInMesh;
     // output attributes
-    static  MObject         instanceData;
+    static  MObject         aInstanceData;
+    // context attributes
+    static  MObject         aContextMode;
+    static  MObject         aBrushRadius;
+    static  MObject         aNumBrushSamples;
+    static  MObject         aFalloff;
+    static  MObject         aAlignSpace;
+    static  MObject         aMinDistance;
+    static  MObject         aStrength;
+    static  MObject         aMinRotation;
+    static  MObject         aMaxRotation;
+    static  MObject         aUniformScale;
+    static  MObject         aMinScale;
+    static  MObject         aMaxScale;
+    static  MObject         aScaleFactor;
+    static  MObject         aScaleAmount;
+    static  MObject         aMinOffset;
+    static  MObject         aMaxOffset;
+    // emit attributes
+    static  MObject         aEmitType;
+    static  MObject         aEmit;
+    static  MObject         aNumEmitSamples;
+    static  MObject         aMinRadius;
+    static  MObject         aEmitFromTexture;
+    static  MObject         aEmitTexture;
+    // dummy attributes
+    static  MObject         aGeoCached;
+    static  MObject         aPointsCached;
+    // storage attributes
+    static  MObject         aPosition;
+    static  MObject         aRotatio;
+    static  MObject         aScale;
+    static  MObject         aInstanceId;
+    static  MObject         aVisibility;
+    static  MObject         aNormal;
+    static  MObject         aTangent;
+    static  MObject         aUCoord;
+    static  MObject         aVCoord;
+    static  MObject         aPolyId;
+    static  MObject         aColor;
+    static  MObject         aIndex;
 };
-
-
-//
-// Brush Context
-//
-
-
-class brushContext : public MPxContext
-{
-public:
-                            brushContext();
-    virtual void            toolOnSetup( MEvent& event );
-
-    virtual MStatus         doPress( MEvent &event );
-    virtual MStatus         doDrag( MEvent &event );
-    virtual MStatus         doEnterRegion( MEvent &event );
-    // MStatus                 doPress( MEvent &event ) override;
-    // MStatus                 doPress (MEvent & event, MHWRender::MUIDrawManager& drawMgr, const MHWRender::MFrameContext& context) override;
-
-    static void             updateManipulators( void *data );
-
-    static MPoint           screenToWorld( MEvent &event );
-
-    static MObject          targetSurface;
-private:
-    static M3dView                 view;
-};
-
-
-//
-// Context Command
-//
-
-
-class brushContextCmd : public MPxContextCommand
-{
-public:
-                            brushContextCmd() {};
-    static void*            creator();
-    virtual MPxContext*     makeObj();
-
-};
-
-
-//
-// Brush Manipulator Container
-//
-
-
-class brushManip : public MPxManipContainer
-{
-public:
-                            brushManip() {};
-    virtual                 ~brushManip() {};
-
-    static void *           creator();
-    static MStatus          initialize();
-
-    virtual void            draw( M3dView &view,
-                                const MDagPath &path,
-                                M3dView::DisplayStyle style,
-                                M3dView::DisplayStatus status );
-    virtual MStatus         connectToDependNode( const MObject &node );
-
-    // virtual MStatus         doPress();
-    // virtual MStatus         doDrag();
-
-    static MTypeId          id;
-};
-
-
-
-
 
 
 
