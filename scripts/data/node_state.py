@@ -55,10 +55,8 @@ class SporeState(object):
         self.rotation = array_attr_fn.vectorArray('rotation')
         self.instance_id = array_attr_fn.intArray('objectIndex')
         self.visibility = array_attr_fn.intArray('visibility')
-
         self.normal = array_attr_fn.vectorArray('normal')
         self.tangent = array_attr_fn.vectorArray('tangent')
-
         self.u_coord = array_attr_fn.doubleArray('u_coord')
         self.v_coord = array_attr_fn.doubleArray('v_coord')
         self.poly_id = array_attr_fn.intArray('poly_id')
@@ -107,8 +105,6 @@ class SporeState(object):
                       'scale_amount': cmds.getAttr('{}.scaleAmount'.format(self.node)),
                       'min_offset': cmds.getAttr('{}.minOffset'.format(self.node)),
                       'max_offset': cmds.getAttr('{}.maxOffset'.format(self.node)),
-                      'min_id': cmds.getAttr('{}.minId'.format(self.node)),
-                      'max_id': cmds.getAttr('{}.maxId'.format(self.node)),
                       'ids': object_index}
 
 
