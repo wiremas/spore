@@ -14,6 +14,9 @@ import window_utils
 
 class SporeState(object):
     def __init__(self, node):
+
+        dag_fn = om.MFnDagNode(node)
+        self.node_name = dag_fn.fullPathName()
         self.node = node
         self.state = None
         self.data_plug = om.MPlug()
@@ -34,7 +37,7 @@ class SporeState(object):
         self.unique_id = om.MIntArray()
 
         self.exclusive_paint = []
-        self.bounding_box = om.MBoundingBox()
+        self.bounding_box = dag_fn.boundingBox()
 
         self.np_position = np.empty((0,3), float)
         self.tree = None
@@ -45,7 +48,7 @@ class SporeState(object):
         """ get cache data from the sporeNode's instanceData plug/
         :param instance_data_plug MPlug: instanceData plug """
 
-        node_fn = node_utils.get_dgfn_from_dagpath(self.node)
+        node_fn = om.MFnDependencyNode(self.node)
         self.data_plug = node_fn.findPlug('instanceData')
         self.data_object = self.data_plug.asMObject()
         array_attr_fn = om.MFnArrayAttrsData(self.data_object)
@@ -85,26 +88,26 @@ class SporeState(object):
 
         # get modes
         modes = ['place', 'spray', 'scale', 'align', 'move', 'id', 'remove']
-        mode_id = cmds.getAttr('{}.contextMode'.format(self.node))
+        mode_id = cmds.getAttr('{}.contextMode'.format(self.node_name))
         align_modes = ['normal', 'world', 'object', 'stroke']
-        align_id = cmds.getAttr('{}.alignTo'.format(self.node))
+        align_id = cmds.getAttr('{}.alignTo'.format(self.node_name))
 
         # save state
         self.state = {'mode': modes[mode_id],
-                      'num_samples': cmds.getAttr('{}.numBrushSamples'.format(self.node)),
-                      'min_distance': cmds.getAttr('{}.minDistance'.format(self.node)),
-                      'fall_off': cmds.getAttr('{}.fallOff'.format(self.node)),
+                      'num_samples': cmds.getAttr('{}.numBrushSamples'.format(self.node_name)),
+                      'min_distance': cmds.getAttr('{}.minDistance'.format(self.node_name)),
+                      'fall_off': cmds.getAttr('{}.fallOff'.format(self.node_name)),
                       'align_to': align_modes[align_id],
-                      'strength': cmds.getAttr('{}.strength'.format(self.node)),
-                      'min_rot': cmds.getAttr('{}.minRotation'.format(self.node))[0],
-                      'max_rot': cmds.getAttr('{}.maxRotation'.format(self.node))[0],
-                      'uni_scale': cmds.getAttr('{}.uniformScale'.format(self.node)),
-                      'min_scale': cmds.getAttr('{}.minScale'.format(self.node))[0],
-                      'max_scale': cmds.getAttr('{}.maxScale'.format(self.node))[0],
-                      'scale_factor': cmds.getAttr('{}.scaleFactor'.format(self.node)),
-                      'scale_amount': cmds.getAttr('{}.scaleAmount'.format(self.node)),
-                      'min_offset': cmds.getAttr('{}.minOffset'.format(self.node)),
-                      'max_offset': cmds.getAttr('{}.maxOffset'.format(self.node)),
+                      'strength': cmds.getAttr('{}.strength'.format(self.node_name)),
+                      'min_rot': cmds.getAttr('{}.minRotation'.format(self.node_name))[0],
+                      'max_rot': cmds.getAttr('{}.maxRotation'.format(self.node_name))[0],
+                      'uni_scale': cmds.getAttr('{}.uniformScale'.format(self.node_name)),
+                      'min_scale': cmds.getAttr('{}.minScale'.format(self.node_name))[0],
+                      'max_scale': cmds.getAttr('{}.maxScale'.format(self.node_name))[0],
+                      'scale_factor': cmds.getAttr('{}.scaleFactor'.format(self.node_name)),
+                      'scale_amount': cmds.getAttr('{}.scaleAmount'.format(self.node_name)),
+                      'min_offset': cmds.getAttr('{}.minOffset'.format(self.node_name)),
+                      'max_offset': cmds.getAttr('{}.maxOffset'.format(self.node_name)),
                       'ids': object_index}
 
 

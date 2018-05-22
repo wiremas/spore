@@ -1,3 +1,4 @@
+import sys
 import math
 import random
 
@@ -771,7 +772,12 @@ class SporeContext(ompx.MPxContext):
             return
 
         # get node state & cache points for editing
-        self.node_state = node_state.SporeState(self.state.node)
+        #  self.node_state = node_state.SporeState(self.state.node)
+        spore_obj = node_utils.get_mobject_from_name(node_name)
+        obj_handle = om.MObjectHandle(spore_obj)
+        spore_locator = sys._global_spore_tracking_dir[obj_handle.hashCode()]
+        self.node_state = spore_locator._state
+        print self.node_state, spore_locator.state.apiTypeStr()
         self.node_state.get_node_state()
         if self.node_state.state['mode'] == 'scale'\
         or self.node_state.state['mode'] == 'align'\

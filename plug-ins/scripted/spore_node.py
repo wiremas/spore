@@ -438,12 +438,12 @@ class SporeNode(ompx.MPxLocatorNode):
     def postConstructor(self):
         """ called after node has been constructed. used to set things up """
 
-        self.is_intialized = False
+        self._state = None
         self.geo_cache = geo_cache.GeoCache()
 
         obj_handle = om.MObjectHandle(self.thisMObject())
         sys._global_spore_tracking_dir[obj_handle.hashCode()] = self
-        print 'node hashcode', obj_handle.hashCode(), self
+        #  print 'node hashcode', obj_handle.hashCode(), self
 
         self.callbacks = om.MCallbackIdArray()
         self.callbacks.append(om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeSave, self.write_points))
@@ -465,24 +465,37 @@ class SporeNode(ompx.MPxLocatorNode):
         print 'compute', plug.info()
 
         if plug == self.a_instance_data:
+
             # if the node has yet not been in initialized create the instance
             # data attribute and read all point if some exist
-            if not self.is_intialized:
-                print 'initialize instance data'
-                self.initialize_instance_data(plug, data)
-                self.is_intialized = True
+            if not self._state:
+                self.initialize_state(plug, data)
 
-                # set geo_cached attr to true
-                is_geo_cached_handle = data.outputValue(self.a_geo_cached)
-                is_geo_cached_handle.setBool(True)
 
             # cache geometry
             is_cached = data.inputValue(self.a_geo_cached).asBool()
             if not is_cached:
-                print 'set chached'
-                in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
-                self.geo_cache.cache_geometry(in_mesh)
 
+                # check if there is another spore node that already has a cache
+                # object for the current inmesh
+                # note: this does not ensureis the cache is up to date!
+                found = False
+                for key, node in sys._global_spore_tracking_dir.iteritems():
+                    other_in_mesh = node_utils.get_connected_in_mesh(node.thisMObject())
+                    in_mesh = node_utils.get_connected_in_mesh(self.thisMObject())
+                    if in_mesh == other_in_mesh and node != self:
+                        self.geo_cache = node.geo_cache
+                        found = True
+                        break
+
+                # if no cache was found start creating a new one
+                if not found:
+                    in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
+                    self.geo_cache.cache_geometry(in_mesh)
+
+                # set cached to true
+                is_geo_cached_handle = data.outputValue(self.a_geo_cached)
+                is_geo_cached_handle.setBool(True)
 
         #  if plug == self.a_emit_dummy:
         #      emit_type = data.inputValue(self.a_emit_type).asShort()
@@ -493,10 +506,10 @@ class SporeNode(ompx.MPxLocatorNode):
         #      elif emit_type == 2:
         #          print 'jitter'
         #      elif emit_type == 3:
-        #          print 'dsk'
+        #          print 'dsok'
 
 
-    def initialize_instance_data(self, plug, data):
+    def initialize_state(self, plug, data):
         """ initialize the instance data attribute by
         creating all arrays needed. read data from the storage attributes
         and add it the instance data """
@@ -582,6 +595,8 @@ class SporeNode(ompx.MPxLocatorNode):
 
         # set the instance data attribute
         output.setMObject(attr_array_obj)
+
+        self._state = node_state.SporeState(self.thisMObject())
 
 
     def write_points(self, *args, **kwargs):
