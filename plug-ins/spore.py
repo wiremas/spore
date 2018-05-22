@@ -9,16 +9,19 @@ import AEsporeNodeTemplate
 from scripted import spore_node
 from scripted import spore_context
 from scripted import spore_command
+from scripted import spore_sampler
 
 reload(spore_node)
 reload(spore_context)
 reload(spore_command)
+reload(spore_sampler)
 reload (AEsporeNodeTemplate)
 
 import maya.mel as mel
 mel.eval('refreshEditorTemplates;')
 
 
+CALLBACKS = om.MCallbackIdArray()
 MENU = None
 # menu items   #Label                   #commande
 MENU_ITEMS = (('Spore',                 'import manager;reload(manager)'),
@@ -30,22 +33,29 @@ MENU_ITEMS = (('Spore',                 'import manager;reload(manager)'),
 def initializePlugin(mobject):
     """ initialize plugins & create menu"""
 
+    # create global tracking dir to keep track of out nodes
+    if not hasattr(sys, '_global_spore_tracking_dir'):
+        sys._global_spore_tracking_dir = dict()
+
+    # set up callbacks
+    CALLBACKS.append(om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeOpen,
+                                                  clear_tracking_dir))
+    CALLBACKS.append(om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeNew,
+                                                  clear_tracking_dir))
+
     mplugin = ompx.MFnPlugin(mobject)
 
-    # register node prototype
-    try:
+    try: # register node prototype
         mplugin.registerNode(spore_node.SporeNode.name,
                              spore_node.SporeNode.id,
                              spore_node.SporeNode.creator,
                              spore_node.SporeNode.initialize,
                              ompx.MPxNode.kLocatorNode)
-
     except:
         sys.stderr.write( "Failed to register node: %s" % spore_node.SporeNode.name)
         raise
 
-    # register context & tool command
-    try:
+    try: # register context & tool command
         mplugin.registerContextCommand(spore_context.K_CONTEXT_NAME,
                                        spore_context.SporeContextCommand.creator,
                                        spore_context.K_TOOL_CMD_NAME,
@@ -55,14 +65,21 @@ def initializePlugin(mobject):
         sys.stderr.write("Failed to register context command: {}".format(spore_context.K_CONTEXT_NAME))
         raise
 
-    try:
+    try: # register spore command
         mplugin.registerCommand(spore_command.SporeCommand.name,
                                 spore_command.SporeCommand.creator,
                                 spore_command.SporeCommand.syntax)
     except:
         sys.stderr.write('Failed to register spore command: {}'.format(spore_command.SporeCommand.name))
 
-    # cereate menu
+    try: # register sample command
+        mplugin.registerCommand(spore_sampler.SporeSampler.name,
+                                spore_sampler.SporeSampler.creator,
+                                spore_sampler.SporeSampler.syntax)
+    except:
+        sys.stderr.write('Failed to register spore command: {}'.format(spore_sampler.SporeSampler.name))
+
+    # cereate spore menu
     global MENU
     if not MENU:
         main_wnd = pm.language.melGlobals['gMainWindow']
@@ -80,16 +97,26 @@ def uninitializePlugin(mobject):
 
     mplugin = ompx.MFnPlugin(mobject)
 
-    # deregister context and tool command
     try:
+        mplugin.deregisterCommand(spore_sampler.SporeSampler.name)
+    except:
+        sys.stderr.write("Failed to deregister command: %s" % spore_sampler.SporeSampler.name)
+        raise
+
+    try:
+        mplugin.deregisterCommand(spore_command.SporeCommand.name)
+    except:
+        sys.stderr.write("Failed to deregister command: %s" % spore_command.SporeCommand.name)
+        raise
+
+    try: # deregister context and tool command
         mplugin.deregisterContextCommand(spore_context.K_CONTEXT_NAME,
                                          spore_context.K_TOOL_CMD_NAME)
     except:
         sys.stderr.write("Failed to deregister node: %s" % spore_context.K_CONTEXT_NAME)
         raise
 
-    # deregister spore node
-    try:
+    try: # deregister spore node
         mplugin.deregisterNode(spore_node.SporeNode.id)
     except:
         sys.stderr.write("Failed to deregister node: %s" % spore_node.SporeNode.name)
@@ -98,17 +125,17 @@ def uninitializePlugin(mobject):
     # delete menu
     pm.deleteUI(MENU)
 
+    # remove callbacks
+    for i in xrange(CALLBACKS.length()):
+        callback = CALLBACKS[i]
+        om.MSceneMessage.removeCallback(callback)
 
-#  def load_spore_template(node_name):
-#
-#      print 'ae cb'
-#      #  try:
-#      import AEsporeNodeTemplate
-#      reload (AEsporeNodeTemplate)
-#      from maya import mel
-#      mel.eval('refreshEditorTemplates;')
-#
-#      ae_template = AEsporeNodeTemplate.AEsporeNodeTemplate(node_name)
-#      print ae_template
-#      #  except:
-#      #      raise ImportWarning('Could not import sporeNode Attribute Editor ui')
+def clear_tracking_dir(*args):
+    """ clean up the global spore tracking dir when a new file is created
+    or opened """
+
+    print args
+    sys._global_spore_tracking_dir = {}
+
+
+

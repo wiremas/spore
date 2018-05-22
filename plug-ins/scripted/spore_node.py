@@ -1,3 +1,4 @@
+import sys
 import math
 
 import maya.cmds as cmds
@@ -55,7 +56,6 @@ class SporeNode(ompx.MPxLocatorNode):
     a_pressure_mapping = om.MObject()
     a_min_pressure = om.MObject()
     a_max_pressure = om.MObject()
-    # info / dummy attributes
     a_geo_cached = om.MObject()
     a_points_cached = om.MObject()
     a_brush_radius = om.MObject()
@@ -201,6 +201,24 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_scale_amount)
 
+        cls.a_strength = numeric_attr_fn.create('strength', 'strength', om.MFnNumericData.kDouble, 1.0)
+        numeric_attr_fn.setMin(0)
+        numeric_attr_fn.setMax(1)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_strength )
+
+        cls.a_alig_space = enum_attr_fn.create('alignTo', 'alignTo', 0)
+        enum_attr_fn.addField('Normal', 0)
+        enum_attr_fn.addField('World', 1)
+        enum_attr_fn.addField('Object', 2)
+        enum_attr_fn.addField('Stroke', 3)
+        enum_attr_fn.setStorable(False)
+        enum_attr_fn.setKeyable(False)
+        enum_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_alig_space)
+
         cls.a_min_rotation = numeric_attr_fn.createPoint('minRotation', 'minRotation')
         numeric_attr_fn.setMin(-360, -360, -360)
         numeric_attr_fn.setMax(360, 360, 360)
@@ -234,40 +252,6 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_max_offset )
-
-        cls.a_min_id = numeric_attr_fn.create('minId', 'minId', om.MFnNumericData.kInt, 0)
-        numeric_attr_fn.setMin(0)
-        numeric_attr_fn.setSoftMax(10)
-        numeric_attr_fn.setStorable(False)
-        numeric_attr_fn.setKeyable(False)
-        numeric_attr_fn.setConnectable(False)
-        cls.addAttribute(cls.a_min_id)
-
-        cls.a_max_id = numeric_attr_fn.create('maxId', 'maxId', om.MFnNumericData.kInt, 1)
-        numeric_attr_fn.setMin(0)
-        numeric_attr_fn.setSoftMax(10)
-        numeric_attr_fn.setStorable(False)
-        numeric_attr_fn.setKeyable(False)
-        numeric_attr_fn.setConnectable(False)
-        cls.addAttribute(cls.a_max_id)
-
-        cls.a_strength = numeric_attr_fn.create('strength', 'strength', om.MFnNumericData.kDouble, 1.0)
-        numeric_attr_fn.setMin(0)
-        numeric_attr_fn.setMax(1)
-        numeric_attr_fn.setStorable(False)
-        numeric_attr_fn.setKeyable(False)
-        numeric_attr_fn.setConnectable(False)
-        cls.addAttribute(cls.a_strength )
-
-        cls.a_alig_space = enum_attr_fn.create('alignTo', 'alignTo', 0)
-        enum_attr_fn.addField('Normal', 0)
-        enum_attr_fn.addField('World', 1)
-        enum_attr_fn.addField('Object', 2)
-        enum_attr_fn.addField('Stroke', 3)
-        enum_attr_fn.setStorable(False)
-        enum_attr_fn.setKeyable(False)
-        enum_attr_fn.setConnectable(False)
-        cls.addAttribute(cls.a_alig_space)
 
         cls.a_pressure = numeric_attr_fn.create('usePressureMapping', 'usePressureMapping', om.MFnNumericData.kBoolean, 0)
         numeric_attr_fn.setStorable(False)
@@ -320,17 +304,16 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_emit)
 
-        cls.a_emit_from_texture = numeric_attr_fn.create('emitFromTexture', 'emitFromTexture', om.MFnNumericData.kBoolean, 1)
-        numeric_attr_fn.setStorable(False)
+        cls.a_emit_from_texture = numeric_attr_fn.create('emitFromTexture', 'emitFromTexture', om.MFnNumericData.kBoolean, 0)
+        numeric_attr_fn.setStorable(True)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setReadable(False)
         numeric_attr_fn.setKeyable(False)
         cls.addAttribute(cls.a_emit_from_texture)
 
         cls.a_emit_texture  = numeric_attr_fn.createColor('emitTexture', 'emitTexture')
-        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setStorable(True)
         numeric_attr_fn.setKeyable(False)
-        #  numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_emit_texture )
 
         cls.a_num_samples = numeric_attr_fn.create('numSamples', 'numSamples', om.MFnNumericData.kInt, 1)
@@ -345,7 +328,7 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setMin(0.001)
         numeric_attr_fn.setSoftMax(100)
         numeric_attr_fn.setSoftMax(10000)
-        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setStorable(True)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_min_radius)
@@ -355,7 +338,6 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
-        #  numeric_attr_fn.setWritable(False)
         cls.addAttribute(cls.a_geo_cached)
 
         cls.a_points_cached = numeric_attr_fn.create('pointsChached', 'pointsChached', om.MFnNumericData.kBoolean, 0)
@@ -440,10 +422,7 @@ class SporeNode(ompx.MPxLocatorNode):
         typed_attr_fn.setStorable(True)
         cls.addAttribute(cls.a_unique_id)
 
-        cls.attributeAffects(cls.a_emit, cls.a_instance_data)
-        cls.attributeAffects(cls.a_geo_cached, cls.a_points_cached)
-        #  cls.attributeAffects(cls.a_emit, cls.a_geo_cached)
-        #  cls.attributeAffects(cls.in_mesh, cls.a_geo_cached)
+        cls.attributeAffects(cls.a_geo_cached, cls.a_instance_data)
 
     def __init__(self):
         ompx.MPxLocatorNode.__init__(self)
@@ -459,7 +438,12 @@ class SporeNode(ompx.MPxLocatorNode):
     def postConstructor(self):
         """ called after node has been constructed. used to set things up """
 
+        self.is_intialized = False
         self.geo_cache = geo_cache.GeoCache()
+
+        obj_handle = om.MObjectHandle(self.thisMObject())
+        sys._global_spore_tracking_dir[obj_handle.hashCode()] = self
+        print 'node hashcode', obj_handle.hashCode(), self
 
         self.callbacks = om.MCallbackIdArray()
         self.callbacks.append(om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeSave, self.write_points))
@@ -480,35 +464,36 @@ class SporeNode(ompx.MPxLocatorNode):
         this_node = self.thisMObject()
         print 'compute', plug.info()
 
-        # cache geometry
-        if plug == self.a_points_cached:
-            #  is_geo_cached = data.inputValue(self.a_geo_cached).asBool()
-            #  if not is_geo_cached:
-            print 'pnt chache'
-            in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
-            self.geo_cache.cache_geometry(in_mesh)
-
-            # not yet implemented
-            is_geo_cached_handle = data.outputValue(self.a_geo_cached)
-            is_geo_cached_handle.setBool(True)
-            print 'set chached'
-
-            #  is_points_cached = data.inputValue(self.a_points_cached).asBool()
-            #  if not is_point_cached:
-        # initialize instance data attribute
         if plug == self.a_instance_data:
-            self.initialize_instance_data(plug, data)
-            #  is_geo_cached = data.inputValue(self.a_geo_cached).asBool()
+            # if the node has yet not been in initialized create the instance
+            # data attribute and read all point if some exist
+            if not self.is_intialized:
+                print 'initialize instance data'
+                self.initialize_instance_data(plug, data)
+                self.is_intialized = True
 
-            emit_type = data.inputValue(self.a_emit_type).asInt()
-            #  print 'emit type', emit_type.type(), emit_type.asInt() #, emit_t,ype.asInt(), emit_type.asString()
-            if emit_type == 16842752:
-                print 'random'
-            elif emit_type == 16842753:
-                print 'jitter'
-            elif emit_type == 16842754:
-                print 'dsk'
+                # set geo_cached attr to true
+                is_geo_cached_handle = data.outputValue(self.a_geo_cached)
+                is_geo_cached_handle.setBool(True)
 
+            # cache geometry
+            is_cached = data.inputValue(self.a_geo_cached).asBool()
+            if not is_cached:
+                print 'set chached'
+                in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
+                self.geo_cache.cache_geometry(in_mesh)
+
+
+        #  if plug == self.a_emit_dummy:
+        #      emit_type = data.inputValue(self.a_emit_type).asShort()
+        #      print 'emit type', emit_type
+        #      #  print 'emit type', emit_type.type(), emit_type.asInt() #, emit_t,ype.asInt(), emit_type.asString()
+        #      if emit_type == 0:
+        #          print 'random'
+        #      elif emit_type == 2:
+        #          print 'jitter'
+        #      elif emit_type == 3:
+        #          print 'dsk'
 
 
     def initialize_instance_data(self, plug, data):
