@@ -34,8 +34,7 @@ spore any /path/to/spore/spore
 
 
 # Dependencies
-In order to run **spore** you need scypy and numpy
-
+In order to run **spore** you need scipy and numpy
 
 
 # SporeNode
