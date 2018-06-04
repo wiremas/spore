@@ -11,7 +11,7 @@ import maya.OpenMayaRender as omr
 #  from spore.data import point_cache
 
 import node_utils
-import node_state
+import instance_data
 #  import ptc_sampler
 import geo_cache
 import progress_bar
@@ -20,18 +20,16 @@ import progress_bar
 
 reload(geo_cache)
 
-class SporeNode(ompx.MPxLocatorNode):
+class SporeNode(ompx.MPxNode):
     name = 'sporeNode'
     id = om.MTypeId(0x88805)
 
     # output attributes
-    a_instance_data = om.MObject() # point output attr
+    a_instance_data = om.MObject()
     # input attributes
-    in_mesh = om.MObject() # input mesh
-    #  a_out_mesh = om.MObject()
-    a_emit_texture  = om.MObject() # emit texture
-    # node attributes
-    a_context_mode = om.MObject() # current mode of the context
+    in_mesh = om.MObject()
+    # paint / place attributes
+    a_context_mode = om.MObject()
     a_num_brush_samples = om.MObject()
     a_falloff = om.MObject()
     a_min_distance = om.MObject()
@@ -47,15 +45,21 @@ class SporeNode(ompx.MPxLocatorNode):
     a_min_id = om.MObject()
     a_max_id = om.MObject()
     a_strength = om.MObject()
-    #  a_relative = om.MObject()
-    a_emit_type = om.MObject()
-    a_emit = om.MObject()
-    a_num_samples = om.MObject()
-    a_min_radius = om.MObject()
     a_pressure = om.MObject()
     a_pressure_mapping = om.MObject()
     a_min_pressure = om.MObject()
     a_max_pressure = om.MObject()
+    # emit attributes
+    a_emit_type = om.MObject()
+    a_emit = om.MObject()
+    a_num_samples = om.MObject()
+    a_min_radius = om.MObject()
+    # filter attributes
+    a_emit_texture  = om.MObject()
+    a_min_altitude = om.MObject()
+    a_max_altitude = om.MObject()
+    a_min_slope = om.MObject()
+    a_max_slope = om.MObject()
     a_geo_cached = om.MObject()
     a_points_cached = om.MObject()
     a_brush_radius = om.MObject()
@@ -316,6 +320,38 @@ class SporeNode(ompx.MPxLocatorNode):
         numeric_attr_fn.setKeyable(False)
         cls.addAttribute(cls.a_emit_texture )
 
+        cls.a_min_altitude = numeric_attr_fn.create('minAltitude', 'minAltitude', om.MFnNumericData.kDouble, 0.0)
+        numeric_attr_fn.setMin(0)
+        numeric_attr_fn.setMax(1)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_min_altitude)
+
+        cls.a_max_altitude = numeric_attr_fn.create('maxAltitude', 'maxAltitude', om.MFnNumericData.kDouble, 1.0)
+        numeric_attr_fn.setMin(0)
+        numeric_attr_fn.setMax(1)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_max_altitude)
+
+        cls.a_min_slope = numeric_attr_fn.create('minSlope', 'minSlope', om.MFnNumericData.kDouble, 0.0)
+        numeric_attr_fn.setMin(0)
+        numeric_attr_fn.setMax(180)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_min_slope)
+
+        cls.a_max_slope = numeric_attr_fn.create('maxSlope', 'maxSlope', om.MFnNumericData.kDouble, 180.0)
+        numeric_attr_fn.setMin(0)
+        numeric_attr_fn.setMax(180)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_max_slope)
+
         cls.a_num_samples = numeric_attr_fn.create('numSamples', 'numSamples', om.MFnNumericData.kInt, 1)
         numeric_attr_fn.setMin(0)
         numeric_attr_fn.setSoftMax(10000)
@@ -327,11 +363,18 @@ class SporeNode(ompx.MPxLocatorNode):
         cls.a_min_radius = numeric_attr_fn.create('minRadius', 'minRadius', om.MFnNumericData.kDouble , 1.0)
         numeric_attr_fn.setMin(0.001)
         numeric_attr_fn.setSoftMax(100)
-        numeric_attr_fn.setSoftMax(10000)
         numeric_attr_fn.setStorable(True)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_min_radius)
+
+        cls.a_cell_size = numeric_attr_fn.create('cellSize', 'cellSize', om.MFnNumericData.kDouble , 1.0)
+        numeric_attr_fn.setMin(0.001)
+        numeric_attr_fn.setSoftMax(100)
+        numeric_attr_fn.setStorable(True)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_cell_size)
 
         # node attribute - dummy attributes
         cls.a_geo_cached = numeric_attr_fn.create('geoCached', 'geoCached', om.MFnNumericData.kBoolean, 0)
@@ -425,10 +468,10 @@ class SporeNode(ompx.MPxLocatorNode):
         cls.attributeAffects(cls.a_geo_cached, cls.a_instance_data)
 
     def __init__(self):
-        ompx.MPxLocatorNode.__init__(self)
+        ompx.MPxNode.__init__(self)
 
-    def isBounded(self):
-        return True
+    #  def isBounded(self):
+    #      return True
 
     def boundingBox(self):
         in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
@@ -514,6 +557,7 @@ class SporeNode(ompx.MPxLocatorNode):
         creating all arrays needed. read data from the storage attributes
         and add it the instance data """
 
+        print 'init data'
         # create array attr
         output = data.outputValue(plug)
         array_attr_fn = om.MFnArrayAttrsData()
@@ -596,15 +640,15 @@ class SporeNode(ompx.MPxLocatorNode):
         # set the instance data attribute
         output.setMObject(attr_array_obj)
 
-        self._state = node_state.SporeState(self.thisMObject())
-
+        self._state = instance_data.InstanceData(self.thisMObject())
+        self._state.initialize_data()
 
     def write_points(self, *args, **kwargs):
         """ write the instanceData attribute, that can't be saved with the
         maya scene, to the node's storage attributes to make sure all points
         are svaed with the maya file """
 
-        #  state = node_state.SporeState(self.thisMObject())
+        #  state = instance_data.SporeState(self.thisMObject())
         node_fn = om.MFnDependencyNode(self.thisMObject())
         data_plug = node_fn.findPlug('instanceData')
         data_obj = data_plug.asMObject()
