@@ -1,3 +1,4 @@
+import math
 from maya import cmds
 
 import pymel.core as pm
@@ -33,7 +34,7 @@ class AEsporeNodeTemplate(AETemplate):
         self.beginScrollLayout()
 
         self.build_ui() # build bui
-        pm.mel.AElocatorInclude(node) # add defaul controls
+        #  pm.mel.AElocatorInclude(node) # add defaul controls
         self.addExtraControls('Extra Attributes') # add extra attributes
 
         self.endScrollLayout()
@@ -78,17 +79,9 @@ class AEsporeNodeTemplate(AETemplate):
         self.callCustom(self.add_instance_list, self.update_instance_list)
         self.endLayout()
 
-        # brush properties
-        self.beginLayout('Brush', collapse=0)
-        self.callCustom(self.add_brush_btn, self.update_brush_btn, 'contextMode')
-        self.addControl('brushRadius', label='Radus')
-        self.addSeparator()
-        self.addControl('numBrushSamples', label='Number Of Samples')
-        self.addSeparator()
-        self.addControl('minDistance', label='Min Distance')
-        self.addSeparator()
-        self.addControl('fallOff', label='Falloff')
-        self.dimControl(self._node, 'fallOff', True)
+
+        # placement options
+        self.beginLayout('Options', collapse=False)
         self.addSeparator()
         self.addControl('alignTo', label='Align To')
         self.addControl('strength', label='Weight')
@@ -104,6 +97,9 @@ class AEsporeNodeTemplate(AETemplate):
         self.addSeparator()
         self.addControl('minOffset', label='Min Offset')
         self.addControl('maxOffset', label='Max Offset')
+        #  self.beginLayout('Flood', collapse=True)
+        #  cmds.button('floodBtn', l='Flood Values')
+        #  self.endLayout()
         #  self.addSeparator()
         #  self.addControl('minId', label='Min Id', changeCommand=lambda _: self.index_cc('min'))
         #  self.addControl('maxId', label='Max Id', changeCommand=lambda _: self.index_cc('max'))
@@ -114,24 +110,44 @@ class AEsporeNodeTemplate(AETemplate):
         #  self.addControl('maxPressure', label='Max Pessure')
         self.endLayout()
 
+        # brush properties
+        self.beginLayout('Brush', collapse=True)
+        self.callCustom(self.add_brush_btn, self.update_brush_btn, 'contextMode')
+        self.addControl('brushRadius', label='Radus')
+        self.addSeparator()
+        self.addControl('numBrushSamples', label='Number Of Samples')
+        self.addSeparator()
+        self.addControl('minDistance', label='Min Distance')
+        self.addSeparator()
+        self.addControl('fallOff', label='Falloff')
+        self.dimControl(self._node, 'fallOff', True)
+        self.endLayout()
         # emit properties
         self.beginLayout('Emit', collapse=1)
         self.addControl('emitType', label='Type', changeCommand=self.emit_type_cc)
         self.addControl('numSamples', label='Number Of Samples')
-        self.addControl('minRadius', label='Number Of Samples')
+        self.addControl('cellSize', label='Cell Size', changeCommand=self.estimate_num_samples)
+        self.addControl('minRadius', label='Min Radius', changeCommand=self.estimate_num_samples)
         self.beginLayout('Filter', collapse=1)
+        self.beginLayout('Texture', collapse=0)
         self.addControl('emitFromTexture', label='Emit from Texture')
         self.addControl('emitTexture', label='Texture')
+        self.endLayout()
         self.addSeparator()
+        self.beginLayout('Altitude', collapse=0)
         self.addControl('minAltitude', 'Min Altitude')
         self.addControl('maxAltitude', 'Max Altitude')
+        self.endLayout()
         self.addSeparator()
+        self.beginLayout('Slope', collapse=0)
         self.addControl('minSlope', 'Min Slope')
         self.addControl('maxSlope', 'Max Slope')
         self.endLayout()
-        self.beginLayout('Geo Cache', collapse=1)
-        self.addControl('geoCached', label='Geometry Cached')
         self.endLayout()
+        #  self.beginLayout('Geo Cache', collapse=1)
+        #  self.addControl('geoCached', label='Geometry Cached')
+        #  self.endLayout()
+        #  self.addControl('emitDummy', label='emitDummy')
         self.callCustom(self.add_emit_btn, self.update_emit_btn, "emit" )
         self.endLayout()
 
@@ -185,6 +201,7 @@ class AEsporeNodeTemplate(AETemplate):
 
     def update_instance_list(self, *args):
 
+        print 'update:' , args, self._node
         instanced_geo = node_utils.get_instanced_geo(self._node)
         #  if instanced_geo:
         instanced_geo = ['[{}]: {}'.format(i, name) for i, name in enumerate(instanced_geo)]
@@ -233,14 +250,19 @@ class AEsporeNodeTemplate(AETemplate):
     def add_emit_btn(self, attr):
         """ add button to trigger emit checkbox """
 
-        cmd = 'cmds.setAttr("{}", 1)'.format(attr)
-        cmds.button('emitButton', l='Emit', c=cmd )
+        #  cmd = 'cmds.setAttr("{}", 1)'.format(attr)
+        cmds.button('emitButton', l='Emit', c=self.emit)
 
     def update_emit_btn(self, attr):
         """ update button to trigger emit checkbox """
 
-        cmd = 'cmds.setAttr("{}", 1)'.format(attr)
-        cmds.button('emitButton', e=True, c=cmd)
+        #  cmd = 'cmds.setAttr("{}", 1)'.format(attr)
+        cmds.button('emitButton', e=True, c=self.emit)
+
+    def emit(self, *args):
+        print args
+        cmds.setAttr('{}.emit'.format(self._node), 1)
+        cmds.sporeSampleCmd()
 
     # ------------------------------------------------------------------------ #
     # context mode buttons
@@ -263,15 +285,33 @@ class AEsporeNodeTemplate(AETemplate):
 
     def update_brush_btn(self, attr):
 
-        cmds.button('placeBtn', e=True, c=pm.Callback(self.activateContext, 'place', attr, 0))
-        cmds.button('sprayBtn', e=True, c=pm.Callback(self.activateContext, 'spray', attr, 1))
-        cmds.button('scaleBtn', e=True, c=pm.Callback(self.activateContext, 'scale', attr, 2))
-        cmds.button('alignBtn', e=True, c=pm.Callback(self.activateContext, 'align', attr, 3))
-        #  cmds.button('moveBtn', e=True, c=pm.Callback(self.activateContext, 'move', attr, 4))
-        cmds.button('idBtn', e=True, c=pm.Callback(self.activateContext, 'id', attr, 5))
-        cmds.button('removeBtn', e=True, c=pm.Callback(self.activateContext, 'remove', attr, 6))
+        cmds.button('placeBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'place', attr, 0))
+        cmds.button('sprayBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'spray', attr, 1))
+        cmds.button('scaleBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'scale', attr, 2))
+        cmds.button('alignBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'align', attr, 3))
+        #  cmds.button('moveBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'move', attr, 4))
+        cmds.button('idBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'id', attr, 5))
+        cmds.button('removeBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'remove', attr, 6))
 
         self._node = attr.split('.')[0]
+        if cmds.currentCtx().startswith('spore'):
+            ctx_mode = cmds.getAttr(attr)
+            print ctx_mode
+            if ctx_mode == 0:
+                cmds.button('placeBtn', e=True, bgc=(0.148, 0.148, 0.148))
+            elif ctx_mode == 1:
+                cmds.button('sprayBtn', e=True, bgc=(0.148, 0.148, 0.148))
+            elif ctx_mode == 2:
+                cmds.button('scaleBtn', e=True, bgc=(0.148, 0.148, 0.148))
+            elif ctx_mode == 3:
+                cmds.button('alignBtn', e=True, bgc=(0.148, 0.148, 0.148))
+            elif ctx_mode == 4:
+                pass
+            elif ctx_mode == 5:
+                cmds.button('idBtn', e=True, bgc=(0.148, 0.148, 0.148))
+            elif ctx_mode == 6:
+                cmds.button('removeBtn', e=True, bgc=(0.148, 0.148, 0.148))
+
 
 
     def activateContext(self, context_mode, attr, index):
@@ -314,6 +354,13 @@ class AEsporeNodeTemplate(AETemplate):
         for i, ctrl in enumerate(brush_crtls):
             self.dimControl(node_name, ctrl, not dim_ctrl[context_mode][i])
 
+        # colorize button
+        buttons = ['placeBtn', 'sprayBtn', 'scaleBtn', 'alignBtn', 'idBtn', 'removeBtn']
+        for btn in buttons:
+            cmds.button(btn, e=True, bgc=(0.366, 0.366, 0.366))
+        button_name = '{}Btn'.format(context_mode)
+        cmds.button(button_name, e=True, bgc=(0.148, 0.148, 0.148))
+
         # set context
         self.context = cmds.sporeContext()
         cmds.select(self._node)
@@ -325,17 +372,40 @@ class AEsporeNodeTemplate(AETemplate):
 
     def emit_type_cc(self, node):
         """ """
+        self._node = node
         emit_type = cmds.getAttr('{}.emitType'.format(node))
+        print 'change type', node, emit_type
 
         if emit_type == 0:
-            self.dimControl(node, 'minEmitDistance', True)
-            self.dimControl(node, 'gridSize', True)
+            self.dimControl(node, 'numSamples', False)
+            self.dimControl(node, 'cellSize', True)
+            self.dimControl(node, 'minRadius', True)
         elif emit_type == 1:
-            self.dimControl(node, 'minEmitDistance', True)
-            self.dimControl(node, 'gridSize', False)
+            self.dimControl(node, 'numSamples', True)
+            self.dimControl(node, 'cellSize', False)
+            self.dimControl(node, 'minRadius', True)
+            self.estimate_num_samples(node)
         elif emit_type == 2:
-            self.dimControl(node, 'minEmitDistance', False)
-            self.dimControl(node, 'gridSize', True)
+            self.dimControl(node, 'numSamples', True)
+            self.dimControl(node, 'cellSize', True)
+            self.dimControl(node, 'minRadius', False)
+            self.estimate_num_samples(node)
+
+    def estimate_num_samples(self, node):
+        self._node = node
+        emit_type = cmds.getAttr('{}.emitType'.format(node))
+        if emit_type == 0:
+            return
+        elif emit_type == 1:
+            cell_size = cmds.getAttr(self._node + '.cellSize')
+        elif emit_type == 2:
+            cell_size = cmds.getAttr(self._node + '.minRadius') / math.sqrt(3)
+
+        in_mesh = node_utils.get_connected_in_mesh(self._node)
+        area = cmds.polyEvaluate(in_mesh, worldArea=True)
+
+        print area, cell_size, area / cell_size
+        cmds.setAttr(self._node + '.numSamples', int(area/cell_size) * 10)
 
 
     def use_pressure_cc(self, node):
