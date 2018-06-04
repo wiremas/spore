@@ -44,10 +44,10 @@ class BrushState(object):
         return self._node
 
     @node.setter
-    def node(self, node_name):
+    def node(self, node):
         """ node setter """
 
-        self._node = node_name
+        self._node = node
         self._radius = cmds.getAttr('{}.brushRadius'.format(self._node))
 
     @property
@@ -62,6 +62,43 @@ class BrushState(object):
 
         self._radius = radius
         cmds.setAttr('{}.brushRadius'.format(self._node), radius)
+
+    def get_brush_settings(self):
+        """ fetch brush setting from the node and save it to the "state" dict """
+
+        # get selected item from node's textScrollList
+        sel = cmds.textScrollList('instanceList', q=True, si=True)
+        if sel:
+            object_index = [int(s.split(' ')[0].strip('[]:')) for s in sel]
+        else:
+            elements = cmds.textScrollList('instanceList', q=True, ai=True)
+            object_index = [int(e.split(' ')[0].strip('[]:')) for e in elements]
+
+        # get modes
+        modes = ['place', 'spray', 'scale', 'align', 'move', 'id', 'remove']
+        mode_id = cmds.getAttr('{}.contextMode'.format(self._node))
+        align_modes = ['normal', 'world', 'object', 'stroke']
+        align_id = cmds.getAttr('{}.alignTo'.format(self._node))
+
+        # save state
+        self.settings = {'mode': modes[mode_id],
+                         'num_samples': cmds.getAttr('{}.numBrushSamples'.format(self._node)),
+                         'min_distance': cmds.getAttr('{}.minDistance'.format(self._node)),
+                         'fall_off': cmds.getAttr('{}.fallOff'.format(self._node)),
+                         'align_to': align_modes[align_id],
+                         'strength': cmds.getAttr('{}.strength'.format(self._node)),
+                         'min_rot': cmds.getAttr('{}.minRotation'.format(self._node))[0],
+                         'max_rot': cmds.getAttr('{}.maxRotation'.format(self._node))[0],
+                         'uni_scale': cmds.getAttr('{}.uniformScale'.format(self._node)),
+                         'min_scale': cmds.getAttr('{}.minScale'.format(self._node))[0],
+                         'max_scale': cmds.getAttr('{}.maxScale'.format(self._node))[0],
+                         'scale_factor': cmds.getAttr('{}.scaleFactor'.format(self._node)),
+                         'scale_amount': cmds.getAttr('{}.scaleAmount'.format(self._node)),
+                         'min_offset': cmds.getAttr('{}.minOffset'.format(self._node)),
+                         'max_offset': cmds.getAttr('{}.maxOffset'.format(self._node)),
+                         'ids': object_index}
+
+
 
     def get_screen_position(self, invert_y=True):
         """ get the current brush position in screen space coordinates
@@ -152,3 +189,5 @@ class BrushState(object):
 
         return (x_pos, y_pos)
 
+    def __str__(self):
+        return self
