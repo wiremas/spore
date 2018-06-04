@@ -24,7 +24,8 @@ class SporeCommand(ompx.MPxCommand):
 
     def __init__(self):
         ompx.MPxCommand.__init__(self)
-        self.m_dag_mod = om.MDagModifier()
+        self.dag_mod = om.MDagModifier()
+        self.dg_mod = om.MDGModifier()
         self.spore = om.MObject()
         self.instancer = om.MObject()
         self.target = om.MObject()
@@ -38,9 +39,9 @@ class SporeCommand(ompx.MPxCommand):
     @staticmethod
     def syntax():
         syntax = om.MSyntax()
-        syntax.setObjectType(om.MSyntax.kSelectionList)
+        syntax.setObjectType(om.MSyntax.kSelectionList, 1)
         syntax.useSelectionAsDefault(True)
-        #  syntax.addFlag(k_name_flag, k_name_long_flag, om.MSyntax.kString)
+        syntax.addFlag(k_name_flag, k_name_long_flag, om.MSyntax.kString)
         return syntax
 
     def doIt(self, args):
@@ -50,31 +51,36 @@ class SporeCommand(ompx.MPxCommand):
         self.parse_args(args)
 
         # create sporeNode and instancer
-        spore_transform = self.m_dag_mod.createNode('transform')
-        self.spore = self.m_dag_mod.createNode('sporeNode', spore_transform)
-        self.instancer = self.m_dag_mod.createNode('instancer')
+        #  spore_transform = self.dg_mod.createNode('transform')
+        self.spore = self.dg_mod.createNode('sporeNode')
+        self.instancer = self.dag_mod.createNode('instancer')
+        print 1
 
         # rename nodes
         if self.name:
             self.name = '{}_'.format(self.name)
             print 'name:', self.name
-        self.m_dag_mod.renameNode(spore_transform, '{}spore'.format(self.name))
-        self.m_dag_mod.renameNode(self.spore, '{}sporeShape'.format(self.name))
-        self.m_dag_mod.renameNode(self.instancer, '{}sporeInstancer'.format(self.name))
+        #  self.dg_mod.renameNode(spore_transform, '{}spore'.format(self.name))
+        self.dg_mod.renameNode(self.spore, '{}spore'.format(self.name))
+        self.dag_mod.renameNode(self.instancer, '{}sporeInstancer'.format(self.name))
+        print 2
 
         # get spore node plugs
-        dag_fn = om.MFnDagNode(self.spore)
-        in_mesh_plug = dag_fn.findPlug('inMesh')
-        instance_data_plug = dag_fn.findPlug('instanceData')
+        dg_fn = om.MFnDependencyNode(self.spore)
+        in_mesh_plug = dg_fn.findPlug('inMesh')
+        instance_data_plug = dg_fn.findPlug('instanceData')
+        print 3
 
         # get instancer plugs
-        dg_fn = om.MFnDependencyNode(self.instancer)
+        dg_fn = om.MFnDagNode(self.instancer)
         in_points_plug = dg_fn.findPlug('inputPoints')
         in_hierarchy_plug = dg_fn.findPlug('inputHierarchy')
+        print 4
 
         # get target out mesh plug
-        dag_fn = om.MFnDependencyNode(self.target)
+        dag_fn = om.MFnDagNode(self.target)
         out_mesh_plug = dag_fn.findPlug('outMesh')
+        print 5
 
         # get source matrix plugs
         matrix_plug_array = om.MPlugArray()
@@ -83,26 +89,29 @@ class SporeCommand(ompx.MPxCommand):
             matrix_plug = dag_fn.findPlug('matrix')
             matrix_plug_array.append(matrix_plug)
 
+        print 6
         # hook everything up
-        self.m_dag_mod.connect(instance_data_plug, in_points_plug)
-        self.m_dag_mod.connect(out_mesh_plug, in_mesh_plug)
+        self.dg_mod.connect(instance_data_plug, in_points_plug)
+        self.dg_mod.connect(out_mesh_plug, in_mesh_plug)
         for i in xrange(matrix_plug_array.length()):
             in_plug = in_hierarchy_plug.elementByLogicalIndex(i)
-            self.m_dag_mod.connect(matrix_plug_array[i], in_plug)
+            self.dg_mod.connect(matrix_plug_array[i], in_plug)
 
+        print 1
         self.redoIt()
 
     def redoIt(self):
         """ redo """
 
-        self.m_dag_mod.doIt()
+        self.dag_mod.doIt()
+        self.dg_mod.doIt()
 
         # get result
         result = []
-        dag_fn = om.MFnDagNode(self.spore)
-        result.append(dag_fn.fullPathName())
-        dg_fn = om.MFnDependencyNode(self.instancer)
+        dg_fn = om.MFnDependencyNode(self.spore)
         result.append(dg_fn.name())
+        dag_fn = om.MFnDagNode(self.instancer)
+        result.append(dag_fn.fullPathName())
         self.clearResult()
         self.setResult(result)
 
@@ -110,7 +119,8 @@ class SporeCommand(ompx.MPxCommand):
     def undoIt(self):
         """ undo """
 
-        self.m_dag_mod.undoIt()
+        self.dag_mod.undoIt()
+        self.dg_mod.undoIt()
 
     def isUndoable(self):
         """ set undoable """
@@ -120,9 +130,14 @@ class SporeCommand(ompx.MPxCommand):
     def parse_args(self, args):
         """ parse args """
 
-        selection = om.MSelectionList()
 
         arg_data = om.MArgDatabase(self.syntax(), args)
+
+        if arg_data.isFlagSet(k_name_flag):
+            self.name = arg_data.getFlagArgument(k_name_flag, 0)
+            print 'name:', self.name
+
+        selection = om.MSelectionList()
         arg_data.getObjects(selection)
 
         #  # check if we got at least on item
@@ -152,12 +167,4 @@ class SporeCommand(ompx.MPxCommand):
                 self.source.append(dag_path.node())
 
 
-        #  if arg_data.isFlagSet(k_name_flag):
-        #      print 'flag is set'
-        #      #  arg_ls = om.MArgList()
-        #      self.name = arg_data.flagArgumentString(k_name_flag, 0)
-        #      #  self.name = arg_data.getFlagArgument(k_name_flag, 0).asString()
-        #      #  print 'name:', self.name
-        #      #  self.name = arg_ls.asString(0)
-        #
 
