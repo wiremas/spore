@@ -50,7 +50,7 @@ def initializePlugin(mobject):
                              spore_node.SporeNode.id,
                              spore_node.SporeNode.creator,
                              spore_node.SporeNode.initialize,
-                             ompx.MPxNode.kLocatorNode)
+                             ompx.MPxNode.kDependNode)
     except:
         sys.stderr.write( "Failed to register node: %s" % spore_node.SporeNode.name)
         raise
@@ -74,10 +74,16 @@ def initializePlugin(mobject):
 
     try: # register sample command
         mplugin.registerCommand(spore_sampler.SporeSampler.name,
-                                spore_sampler.SporeSampler.creator,
-                                spore_sampler.SporeSampler.syntax)
+                                spore_sampler.creator,
+                                spore_sampler.syntax)
     except:
         sys.stderr.write('Failed to register spore command: {}'.format(spore_sampler.SporeSampler.name))
+    #
+    #  try:
+    #      mplugin.registerCommand(motionTraceCmd.kPluginCmdName, motionTraceCmd.cmdCreator, motionTraceCmd.syntaxCreator)
+    #  except:
+    #      sys.stderr.write("Failed to register command: %s\n" % motionTraceCmd.kPluginCmdName)
+        raise
 
     # cereate spore menu
     global MENU
@@ -97,6 +103,11 @@ def uninitializePlugin(mobject):
 
     mplugin = ompx.MFnPlugin(mobject)
 
+    #  try:
+    #      mplugin.deregisterCommand(motionTraceCmd.kPluginCmdName)
+    #  except:
+    #      sys.stderr.write("Failed to unregister command: %s\n" % motionTraceCmd.kPluginCmdName)
+        #  raise
     try:
         mplugin.deregisterCommand(spore_sampler.SporeSampler.name)
     except:
