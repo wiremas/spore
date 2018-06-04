@@ -34,8 +34,7 @@ spore any /path/to/spore/spore
 
 
 # Dependencies
-In order to run **spore** you need scypy and numpy
-
+In order to run **spore** you need scipy and numpy
 
 
 # SporeNode
@@ -72,7 +71,7 @@ The *sporeNode* allows to directly add and remove instances.
 Selecting objects from the list while painting enable *Exclusive Mode*.
 In *Exclusive Mode* only the selected objects IDs are considered for painting.
 
-# sporeContex
+# sporeContext
 
 The *sporeContext* is an interactive brush tool that can manipulate the sporeNode's 
 "instanceData" attributes. The context features six differen modes + modifiers.
