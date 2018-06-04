@@ -2,10 +2,10 @@
 module provides quick acces to frequently used node utilities
 """
 
+import math
 
 import maya.OpenMaya as om
-#  from maya import OpenMaya
-#  from maya.api import OpenMaya as om
+
 
 
 def getFullDagPath(mObject):
@@ -146,7 +146,7 @@ def get_instancer(spore_node, as_string=True):
             node = plugs[0].node()
             node_fn = om.MFnDagNode(node)
             if as_string:
-                return node_fn.name()
+                return node_fn.fullPathName()
             else:
                 return node
 
@@ -178,7 +178,7 @@ def get_connected_in_mesh(spore_node, as_string=True):
     if isinstance(spore_node, str) or isinstance(spore_node, unicode):
         node_fn = get_dgfn_from_dagpath(spore_node)
     elif isinstance(spore_node, om.MObject):
-        node_fn = om.MFnDagNode(spore_node)
+        node_fn = om.MFnDependencyNode(spore_node)
     else:
         raise TypeError('Expected type string or MObject, got: {}'.format(type(spore_node)))
 
@@ -196,5 +196,18 @@ def get_connected_in_mesh(spore_node, as_string=True):
                     else:
                         return in_mesh
 
+def get_local_rotation(mobject):
+    """ returns an transform node's world space rotation values
+    in degrees """
+
+    dag_path = om.MDagPath()
+    om.MDagPath.getAPathTo(mobject, dag_path)
+    matrix = dag_path.inclusiveMatrix()
+    matrix = om.MTransformationMatrix(matrix)
+    rotation = matrix.asEulerRotation()
+
+    return om.MVector(math.degrees(rotation.x),
+                      math.degrees(rotation.y),
+                      math.degrees(rotation.z))
 
 
