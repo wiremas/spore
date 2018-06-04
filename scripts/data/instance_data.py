@@ -12,22 +12,26 @@ import node_utils
 import window_utils
 
 
-class SporeState(object):
+class InstanceData(object):
+    """ the spore node's internal instance data object keeps track of
+    scattered points and allows to set, add, modify or query points """
+
     def __init__(self, node):
 
-        dag_fn = om.MFnDagNode(node)
-        self.node_name = dag_fn.fullPathName()
-        self.node = node
+        dg_fn = om.MFnDependencyNode(node)
+        self.node_name = dg_fn.name()
+        self.node = node # TODO - hold on to selection list instead of mobj
+        #  self.bounding_box = None
         self.state = None
         self.data_plug = om.MPlug()
         self.data_object = om.MObject()
 
+        # instance data attributes
         self.position = om.MVectorArray()
         self.scale = om.MVectorArray()
         self.rotation = om.MVectorArray()
         self.instance_id = om.MIntArray()
         self.visibility = om.MIntArray()
-
         self.normal = om.MVectorArray()
         self.tangent = om.MVectorArray()
         self.u_coord = om.MDoubleArray()
@@ -37,14 +41,14 @@ class SporeState(object):
         self.unique_id = om.MIntArray()
 
         self.exclusive_paint = []
-        self.bounding_box = dag_fn.boundingBox()
 
+        # collect points for kd tree
         self.np_position = np.empty((0,3), float)
         self.tree = None
 
-        self.initialize_cache()
+        #  self.initialize_data()
 
-    def initialize_cache(self):
+    def initialize_data(self):
         """ get cache data from the sporeNode's instanceData plug/
         :param instance_data_plug MPlug: instanceData plug """
 
@@ -73,54 +77,6 @@ class SporeState(object):
             position = [[self.position[i].x, self.position[i].y, self.position[i].z]]
             self.np_position = np.append(self.np_position, position, axis=0)
         #  print 'init np arrat:', self.np_position
-
-
-    def get_node_state(self):
-        """ fetch brush setting from the node and save it to the "state" dict """
-
-        # get selected item from node's textScrollList
-        sel = cmds.textScrollList('instanceList', q=True, si=True)
-        if sel:
-            object_index = [int(s.split(' ')[0].strip('[]:')) for s in sel]
-        else:
-            elements = cmds.textScrollList('instanceList', q=True, ai=True)
-            object_index = [int(e.split(' ')[0].strip('[]:')) for e in elements]
-
-        # get modes
-        modes = ['place', 'spray', 'scale', 'align', 'move', 'id', 'remove']
-        mode_id = cmds.getAttr('{}.contextMode'.format(self.node_name))
-        align_modes = ['normal', 'world', 'object', 'stroke']
-        align_id = cmds.getAttr('{}.alignTo'.format(self.node_name))
-
-        # save state
-        self.state = {'mode': modes[mode_id],
-                      'num_samples': cmds.getAttr('{}.numBrushSamples'.format(self.node_name)),
-                      'min_distance': cmds.getAttr('{}.minDistance'.format(self.node_name)),
-                      'fall_off': cmds.getAttr('{}.fallOff'.format(self.node_name)),
-                      'align_to': align_modes[align_id],
-                      'strength': cmds.getAttr('{}.strength'.format(self.node_name)),
-                      'min_rot': cmds.getAttr('{}.minRotation'.format(self.node_name))[0],
-                      'max_rot': cmds.getAttr('{}.maxRotation'.format(self.node_name))[0],
-                      'uni_scale': cmds.getAttr('{}.uniformScale'.format(self.node_name)),
-                      'min_scale': cmds.getAttr('{}.minScale'.format(self.node_name))[0],
-                      'max_scale': cmds.getAttr('{}.maxScale'.format(self.node_name))[0],
-                      'scale_factor': cmds.getAttr('{}.scaleFactor'.format(self.node_name)),
-                      'scale_amount': cmds.getAttr('{}.scaleAmount'.format(self.node_name)),
-                      'min_offset': cmds.getAttr('{}.minOffset'.format(self.node_name)),
-                      'max_offset': cmds.getAttr('{}.maxOffset'.format(self.node_name)),
-                      'ids': object_index}
-
-
-    def build_kd_tree(self, refresh_position=False):
-        """ build the kd tree """
-
-        if refresh_position:
-            self.np_position = np.empty((0, 3), float)
-            for i in xrange(self.position.length()):
-                position = [[self.position[i].x, self.position[i].y, self.position[i].z]]
-                self.np_position = np.append(self.np_position, position, axis=0)
-
-        self.tree = kd_tree(self.np_position)
 
     def set_state(self):
         """ set the currently cached point data as node instanceData attribute
@@ -248,6 +204,49 @@ class SporeState(object):
                 assert len(index) == color.length()
                 self.color.set(color[i], index[i])
 
+    def set_length(self, length):
+        """ set the instance data arrays to the given length
+        do nothing when the given length is shorter than the current
+        arrays since this would destroy instance data """
+
+        if len(self) >= length:
+            raise RuntimeWarning('Set length would destroy instance Data. Skipped...')
+            return
+
+        self.position.setLength(length)
+        self.rotation.setLength(length)
+        self.scale.setLength(length)
+        self.instance_id.setLength(length)
+        self.visibility.setLength(length)
+        self.normal.setLength(length)
+        self.tangent.setLength(length)
+        self.u_coord.setLength(length)
+        self.v_coord.setLength(length)
+        self.poly_id.setLength(length)
+        self.color.setLength(length)
+        self.np_position.resize(length, 3, refcheck=False)
+        #  print self.np_position
+
+    def set_point(self, index, position, scale, rotation, instance_id,
+                  visibility, normal, tangent, u_coord, v_coord, poly_id, color):
+        """ set the given index of the array to the given data """
+
+        if index >= self.position.length():
+            raise IndexError('Can\'t set point data: Index out of range')
+
+        self.position.set(position, index)
+        self.rotation.set(rotation, index)
+        self.scale.set(scale, index)
+        self.instance_id.set(instance_id, index)
+        self.visibility.set(visibility, index)
+        self.normal.set(normal, index)
+        self.tangent.set(tangent, index)
+        self.u_coord.set(u_coord, index)
+        self.v_coord.set(v_coord, index)
+        self.poly_id.set(poly_id, index)
+        self.color.set(color, index)
+        self.np_position[index] = [position.x, position.y, position.z]
+
     #  def delete_points(self, index):
     #      index = sorted(index, reverse=True)
     #      print index, len(index), self.position.length()
@@ -273,7 +272,19 @@ class SporeState(object):
 
     def length(self):
         # TODO - do some checking if all the array are the same length?
-        return self.position.length()
+        return len(self)
+
+    def build_kd_tree(self, refresh_position=False):
+        """ build the kd tree """
+
+        if refresh_position:
+            self.np_position = np.empty((0, 3), float)
+            for i in xrange(self.position.length()):
+                position = [[self.position[i].x, self.position[i].y, self.position[i].z]]
+                self.np_position = np.append(self.np_position, position, axis=0)
+
+        self.tree = kd_tree(self.np_position)
+
 
     def get_scale_average(self, index):
         """ get the average scale value for the given list of indexes
@@ -332,12 +343,48 @@ class SporeState(object):
         else:
             return list(neighbours)
 
+    def is_valid(self):
+        """ check if the internal data is in sync """
+
+        try:
+            assert self.position.length() == self.rotation.length()
+            assert self.position.length() == self.scale.length()
+            assert self.position.length() == self.instance_id.length()
+            assert self.position.length() == self.visibility.length()
+            assert self.position.length() == self.normal.length()
+            assert self.position.length() == self.tangent.length()
+            assert self.position.length() == self.u_coord.length()
+            assert self.position.length() == self.v_coord.length()
+            assert self.position.length() == self.poly_id.length()
+            assert self.position.length() == self.color.length()
+            assert self.position.length() == len(self.np_position)
+        except:
+            raise RuntimeError('instance Data out of sync')
+            # TODO - try to repair
+
+
+    #          self.position.remove(i)
+    #          self.np_position = np.delete(self.np_position, i, 0)
+    #          self.scale.remove(i)
+    #          self.rotation.remove(i)
+    #          self.instance_id.remove(i)
+    #          self.visibility.remove(i)
+    #          self.normal.remove(i)
+    #          self.tangent.remove(i)
+    #          self.u_coord.remove(i)
+    #          self.v_coord.remove(i)
+    #          self.poly_id.remove(i)
+    #          self.color.remove(i)
+    #
     def clean_up(self):
         """ remove all points that a invisible after the delete brush
         has initially hidden them and is tearn down when the has been context left """
 
         invalid_ids = [i for i in xrange(self.visibility.length()) if self.visibility[i] == 0]
         invalid_ids = sorted(invalid_ids, reverse=True)
+
+        # TODO - check if invalid ids are in range.
+        # otherwise maya crashes
 
         for index in invalid_ids:
             self.position.remove(index)
@@ -373,6 +420,48 @@ class SporeState(object):
                      'unique_id': self.unique_id[i]}
 
             yield point
+
+    def __add__(self, other):
+        """ add the given other instance data object to this one
+        note: the unique_id will be updated """
+
+        if isinstance(other, InstanceData):
+            self.is_valid()
+            other.is_valid()
+
+            if not len(other):
+                return
+
+            new_len = len(self) + len(other)
+            self.set_length(new_len)
+
+            for i in xrange(len(other)):
+                self.position.set(len(self), other[i])
+                self.rotation.set(len(self), other[i])
+                self.scale.set(len(self), other[i])
+                self.instance_id.set(len(self), other[i])
+                self.visibility.set(len(self), other[i])
+                self.normal.set(len(self), other[i])
+                self.tangent.set(len(self), other[i])
+                self.u_coord.set(len(self), other[i])
+                self.v_coord.set(len(self), other[i])
+                self.poly_id.set(len(self), other[i])
+                self.color.set(len(self), other[i])
+                self.unique_id.set(len(self), len(self))
+
+        else:
+            raise TypeError('Can only add InstanceData to InstanceData. Not InstanceData and {}'.format(type(other)))
+
+        return self
+
+    def __iadd__(self, other):
+        return self + other
+
+    def __repr__(self):
+        pass
+
+    def __str__(self):
+        return 'INSTANCE DATA OBJECT'
 
     def __del__(self):
         print 'del ptc'
