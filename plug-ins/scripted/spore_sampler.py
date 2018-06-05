@@ -74,7 +74,6 @@ class SporeSampler(ompx.MPxCommand):
         self.redoIt()
 
     def redoIt(self):
-        print self.sample_type, self.num_samples, self.cell_size, self.min_distance
 
         # check if we can find a geo cache on the node we operate on
         # else build a new one
@@ -97,6 +96,7 @@ class SporeSampler(ompx.MPxCommand):
         num_samples = cmds.getAttr('{}.numSamples'.format(node_name))
         cell_size = cmds.getAttr('{}.cellSize'.format(node_name))
         min_radius = cmds.getAttr('{}.minRadius'.format(node_name))
+        min_radius_2d = cmds.getAttr('{}.minRadius2d'.format(node_name))
         align_modes = ['normal', 'world', 'object', 'stroke']
         align_id = cmds.getAttr('{}.alignTo'.format(node_name))
         strength = cmds.getAttr('{}.strength'.format(node_name))
@@ -126,23 +126,18 @@ class SporeSampler(ompx.MPxCommand):
 
         elif mode == 1: #'jitter':
             self.random_sampling(num_samples, evaluate_uvs=use_tex)
-            #  print len(self.point_data)
             grid_partition = self.voxelize(cell_size)
-            for key, val in grid_partition.iteritems():
-                print key, val
             valid_points = self.grid_sampling(grid_partition)
-            print 'valid pts', valid_points
 
         elif mode == 2: #'poisson3d':
             self.random_sampling(num_samples, evaluate_uvs=use_tex)
             cell_size = min_radius / math.sqrt(3)
             grid_partition = self.voxelize(cell_size)
-            for key, val in grid_partition.iteritems():
-                print key, val
-            valid_points = self.disk_sampling(min_radius, grid_partition, cell_size)
+            valid_points = self.disk_sampling_3d(min_radius, grid_partition, cell_size)
 
         elif mode == 3: #'poisson2d':
-            pass
+            self.geo_cache.create_uv_lookup()
+            self.disk_sampling_2d(min_radius_2d)
 
         else:
             raise RuntimeError('Invalid sample mode. Legal keys are \'random\', \'jitter\', \'poisson2d\' or \'poisson3d\'')
@@ -254,10 +249,10 @@ class SporeSampler(ompx.MPxCommand):
         return sorted(ids)
 
     """ ---------------------------------------------------------------- """
-    """ disk sampling """
+    """ disk sampling 3d """
     """ ---------------------------------------------------------------- """
 
-    def disk_sampling(self, min_radius, grid_partition, cell_size):
+    def disk_sampling_3d(self, min_radius, grid_partition, cell_size):
 
         in_mesh = node_utils.get_connected_in_mesh(self.target, False)
         bb = om.MFnDagNode(in_mesh).boundingBox()
@@ -269,8 +264,6 @@ class SporeSampler(ompx.MPxCommand):
         # create two list for active (not yet processed) and valid (sampled) points
         active = []
         valid_points = [None] * self.w_count * self.h_count * self.d_count
-        print grid_partition
-        print len(valid_points)
 
         # append the first point to both lists
         active.append(init_p_ref)
@@ -355,6 +348,116 @@ class SporeSampler(ompx.MPxCommand):
                 active.remove(p_active)
 
         return [i for i in valid_points if i]
+
+    """ ---------------------------------------------------------------- """
+    """ disk sampling 2d """
+    """ ---------------------------------------------------------------- """
+
+    def disk_sampling_2d(self, radius, u=1, v=1):
+        """ sample poisson disk samples in uv space
+        note: the given radius must be between 0 and 1 """
+        #  def poisson(radius, k, w, h, n):
+
+        grid = []
+        active = []
+        ordered = []
+
+        cellsize = radius / math.sqrt(2)
+
+        col = int(u / cellsize)
+        row = int(v / cellsize)
+
+        grid = [None] * col * row
+
+        x = random.random() * u  # random.uniform( 0, w )
+        y = random.random() * v  # random.uniform( 0, h )
+        pos = (x, y)
+
+        current_col = int(x / cellsize)
+        current_row = int(y / cellsize)
+
+        grid[current_col + current_row * col] = pos
+        active.append(pos)
+        ordered.append(pos)
+
+        while len(active) > 0:
+
+            rand_index = int(len(active) - 1)
+            active_pos = active[rand_index]
+            found = False
+
+            k = 30
+            for each in xrange(k):
+
+                # find a new point withhin a the range of radius - 2r
+                rand_distance = random.uniform(radius, 2 * radius)
+                theta = 360 * random.random()
+                offset_x = math.cos(theta) * rand_distance
+                offset_y = math.sin(theta) * rand_distance
+
+                # get the absolut position of the new pos
+                new_x = active_pos[0] + offset_x
+                new_y = active_pos[1] + offset_y
+                new_pos = (new_x, new_y)
+
+                # get the new col & row position of the point
+                active_col = int(new_x / cellsize)
+                active_row = int(new_y / cellsize)
+
+                if active_col > 0 \
+                and active_row > 0 \
+                and active_col < col \
+                and active_row < row \
+                and not grid[active_col + active_row * col]:
+
+                    valid = True
+                    for j in xrange(-1, 2):
+                        for f in xrange(-1, 2):
+                            index = (active_col + j) + (active_row + f) * col
+                            try:
+                                neighbor = grid[index]
+                            except IndexError:
+                                continue
+                            if neighbor:
+                                distance = math.sqrt((neighbor[0] - new_pos[0]) ** 2 + (neighbor[1] - new_pos[1]) ** 2)
+                                if (distance < radius):
+                                    valid = False
+
+                    if valid:
+                        found = True
+                        grid[active_col + active_row * col] = new_pos
+                        active.append(new_pos)
+                        ordered.append(new_pos)
+
+                        # TODO
+
+            if not found:
+                active.pop(rand_index)
+
+        self.point_data.set_length(len(ordered))
+
+        util = om.MScriptUtil()
+        in_mesh = node_utils.get_connected_in_mesh(self.target, False)
+        mesh_fn = om.MFnMesh(in_mesh)
+
+        for i, (u_coord, v_coord) in enumerate(ordered):
+
+            face_ids = self.geo_cache.get_close_face_ids(u_coord, 1 - v_coord)
+
+            position = om.MPoint()
+            normal = om.MVector()
+            for face_id in face_ids:
+                util.createFromList([u_coord, 1 - v_coord], 2)
+                ptr = util.asFloat2Ptr()
+
+                try:
+                    mesh_fn.getPointAtUV(face_id, position, ptr, om.MSpace.kWorld)
+                    mesh_fn.getClosestNormal(position, normal)
+                    self.point_data.set(i, position, normal, 1, u_coord, 1 - v_coord)
+                except:
+                    continue
+
+
 
     """ ---------------------------------------------------------------- """
     """ spatial utils """
@@ -458,7 +561,7 @@ class SporeSampler(ompx.MPxCommand):
         mode_map = {0: 'random',
                     1: 'jitter',
                     2: 'poisson3d',
-                    4: 'poisson2d'}
+                    3: 'poisson2d'}
 
         arg_data = om.MArgDatabase(self.syntax(), args)
 
