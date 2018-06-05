@@ -86,6 +86,10 @@ class InstanceData(object):
         view = window_utils.active_view()
         view.refresh(True, False)
 
+        node_fn = om.MFnDependencyNode(self.node)
+        num_spores_plug = node_fn.findPlug('numSpores')
+        num_spores_plug.setInt(len(self))
+
     def get_data_object(self):
         """ return the mObject containing instanceData attribute
         :return mObject: """
@@ -358,7 +362,18 @@ class InstanceData(object):
             assert self.position.length() == self.poly_id.length()
             assert self.position.length() == self.color.length()
             assert self.position.length() == len(self.np_position)
-        except:
+        except AssertionError:
+            print self.position.length()
+            print self.scale.length()
+            print self.instance_id.length()
+            print self.visibility.length()
+            print self.normal.length()
+            print self.tangent.length()
+            print self.u_coord.length()
+            print self.v_coord.length()
+            print self.poly_id.length()
+            print self.color.length()
+            print len(self.np_position)
             raise RuntimeError('instance Data out of sync')
             # TODO - try to repair
 
@@ -383,6 +398,8 @@ class InstanceData(object):
         invalid_ids = [i for i in xrange(self.visibility.length()) if self.visibility[i] == 0]
         invalid_ids = sorted(invalid_ids, reverse=True)
 
+        self.is_valid()
+
         # TODO - check if invalid ids are in range.
         # otherwise maya crashes
 
@@ -399,6 +416,7 @@ class InstanceData(object):
             self.poly_id.remove(index)
             self.color.remove(index)
             self.unique_id.remove(index)
+            self.np_position = np.delete(self.np_position, index, 0)
 
 
     def __len__(self):
