@@ -677,7 +677,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
         # when we in drag mode we want to maintain old instance id value
         if self.brush_state.shift_mod and flag != SporeToolCmd.k_click:
             instance_id = self.initial_id[index]
-            print 'drag id', instance_id
 
         else:
             instance_id = random.choice(self.brush_state.settings['ids'])
@@ -776,7 +775,7 @@ class SporeContext(ompx.MPxContext):
         spore_locator = sys._global_spore_tracking_dir[obj_handle.hashCode()]
         self.instance_data = spore_locator._state
         #  print self.instance_data
-        print spore_locator.state.apiTypeStr()
+        #  print spore_locator.state.apiTypeStr()
         self.state.get_brush_settings()
         if self.state.settings['mode'] == 'scale'\
         or self.state.settings['mode'] == 'align'\
@@ -810,6 +809,10 @@ class SporeContext(ompx.MPxContext):
         window.removeEventFilter(self.key_event_filter)
 
         self.state.draw = False
+
+        # TODO - this is only temp / eighter remove it or find a way to fix
+        # brocken instance data caches inside the validation
+        self.instance_data.is_valid()
 
         if self.state.settings['mode'] == 'remove':
             self.instance_data.clean_up()
