@@ -27,22 +27,45 @@ class AEsporeNodeTemplate(AETemplate):
 
         self._node = node
         self.callbacks = om.MCallbackIdArray()
+        self.jobs = []
         self.io = message_utils.IOHandler()
         self.navigator = None
         self.context = None
 
         self.beginScrollLayout()
-
         self.build_ui() # build bui
         #  pm.mel.AElocatorInclude(node) # add defaul controls
         self.addExtraControls('Extra Attributes') # add extra attributes
-
         self.endScrollLayout()
+
+        self.add_script_job()
 
     def __del__(self):
         for i in xrange(self.callbacks.length()):
             print 'remove cb'
             om.Message().removeCallback(self.callbacks[i])
+
+        # kill script jobs
+        for job in self.jobs:
+            print 'kill script job:', job
+            cmds.scriptJon(kill=job)
+
+    def add_script_job(self):
+        self.jobs.append(cmds.scriptJob(event=["ToolChanged", self.tool_changed]))
+
+    def tool_changed(self, *args):
+        current_tool = cmds.currentCtx()
+        if not current_tool.startswith('spore'):
+            try:
+                cmds.button('placeBtn', e=True, bgc=(0.366, 0.366, 0.366))
+                cmds.button('sprayBtn', e=True, bgc=(0.366, 0.366, 0.366))
+                cmds.button('scaleBtn', e=True, bgc=(0.366, 0.366, 0.366))
+                cmds.button('alignBtn', e=True, bgc=(0.366, 0.366, 0.366))
+                #  cmds.button('moveBtn', e=True, bgc=(0.366, 0.366, 0.366))
+                cmds.button('idBtn', e=True, bgc=(0.366, 0.366, 0.366))
+                cmds.button('removeBtn', e=True, bgc=(0.366, 0.366, 0.366))
+            except RuntimeError:
+                pass
 
 
     def add_callbacks(self):
@@ -128,6 +151,7 @@ class AEsporeNodeTemplate(AETemplate):
         self.addControl('numSamples', label='Number Of Samples')
         self.addControl('cellSize', label='Cell Size', changeCommand=self.estimate_num_samples)
         self.addControl('minRadius', label='Min Radius', changeCommand=self.estimate_num_samples)
+        self.addControl('minRadius2d', label='Min Radius 2d')
         self.beginLayout('Filter', collapse=1)
         self.beginLayout('Texture', collapse=0)
         self.addControl('emitFromTexture', label='Emit from Texture')
@@ -151,6 +175,11 @@ class AEsporeNodeTemplate(AETemplate):
         self.callCustom(self.add_emit_btn, self.update_emit_btn, "emit" )
         self.endLayout()
 
+
+        self.beginLayout('Count', collapse=True)
+        self.addControl('numSpores', label='Count')
+        self.dimControl(self._node, 'Count', True)
+        self.endLayout()
         # I/O
         #  self.beginLayout('I/O', collapse=1)
         #  self.beginLayout('input', collapse=1)
@@ -260,7 +289,26 @@ class AEsporeNodeTemplate(AETemplate):
         cmds.button('emitButton', e=True, c=self.emit)
 
     def emit(self, *args):
-        print args
+        """ run the actual sample command """
+
+        in_mesh = node_utils.get_connected_in_mesh(self._node)
+        transform = cmds.listRelatives(in_mesh, p=True, f=True)[0]
+        if cmds.getAttr(transform + '.translateX') != 0\
+        or cmds.getAttr(transform + '.translateY') != 0\
+        or cmds.getAttr(transform + '.translateZ') != 0\
+        or cmds.getAttr(transform + '.rotateX') != 0\
+        or cmds.getAttr(transform + '.rotateY') != 0\
+        or cmds.getAttr(transform + '.rotateZ') != 0\
+        or cmds.getAttr(transform + '.scaleX') != 1\
+        or cmds.getAttr(transform + '.scaleY') != 1\
+        or cmds.getAttr(transform + '.scaleZ') != 1:
+            msg = 'Feeze inMesh\'s transformations in order to sample the geomety!'
+            result = message_utils.IOHandler().confirm_dialog(msg, 'Freeze Transformations')
+            if result:
+                cmds.makeIdentity(transform, a=True, s=True, r=True, t=True, n=0)
+            else:
+                return
+
         cmds.setAttr('{}.emit'.format(self._node), 1)
         cmds.sporeSampleCmd()
 
@@ -374,39 +422,45 @@ class AEsporeNodeTemplate(AETemplate):
         """ """
         self._node = node
         emit_type = cmds.getAttr('{}.emitType'.format(node))
-        print 'change type', node, emit_type
 
         if emit_type == 0:
             self.dimControl(node, 'numSamples', False)
             self.dimControl(node, 'cellSize', True)
             self.dimControl(node, 'minRadius', True)
+            self.dimControl(node, 'minRadius2d', True)
         elif emit_type == 1:
             self.dimControl(node, 'numSamples', True)
             self.dimControl(node, 'cellSize', False)
             self.dimControl(node, 'minRadius', True)
+            self.dimControl(node, 'minRadius2d', True)
             self.estimate_num_samples(node)
         elif emit_type == 2:
             self.dimControl(node, 'numSamples', True)
             self.dimControl(node, 'cellSize', True)
             self.dimControl(node, 'minRadius', False)
+            self.dimControl(node, 'minRadius2d', True)
             self.estimate_num_samples(node)
+        elif emit_type == 3:
+            self.dimControl(node, 'numSamples', True)
+            self.dimControl(node, 'cellSize', True)
+            self.dimControl(node, 'minRadius', True)
+            self.dimControl(node, 'minRadius2d', False)
 
     def estimate_num_samples(self, node):
+        """ estimate how many random samples we need for grid or disk sampling """
+
         self._node = node
         emit_type = cmds.getAttr('{}.emitType'.format(node))
-        if emit_type == 0:
-            return
-        elif emit_type == 1:
+        if emit_type == 1:
             cell_size = cmds.getAttr(self._node + '.cellSize')
         elif emit_type == 2:
             cell_size = cmds.getAttr(self._node + '.minRadius') / math.sqrt(3)
+        else:
+            return
 
         in_mesh = node_utils.get_connected_in_mesh(self._node)
         area = cmds.polyEvaluate(in_mesh, worldArea=True)
-
-        print area, cell_size, area / cell_size
-        cmds.setAttr(self._node + '.numSamples', int(area/cell_size) * 10)
-
+        cmds.setAttr(self._node + '.numSamples', int(area/cell_size) * 5)
 
     def use_pressure_cc(self, node):
         """ use pen pressure change command is triggered when the "Use Pen Pressure"
