@@ -54,6 +54,7 @@ class SporeNode(ompx.MPxNode):
     a_emit = om.MObject()
     a_num_samples = om.MObject()
     a_min_radius = om.MObject()
+    a_min_radius_2d = om.MObject()
     # filter attributes
     a_emit_texture  = om.MObject()
     a_min_altitude = om.MObject()
@@ -296,7 +297,8 @@ class SporeNode(ompx.MPxNode):
         cls.a_emit_type = enum_attr_fn.create('emitType', 'emitType', 0)
         enum_attr_fn.addField('random', 0)
         enum_attr_fn.addField('jitter grid', 1)
-        enum_attr_fn.addField('poisson', 2)
+        enum_attr_fn.addField('poisson 3d', 2)
+        enum_attr_fn.addField('poisson 2d', 3)
         enum_attr_fn.setStorable(False)
         enum_attr_fn.setKeyable(False)
         enum_attr_fn.setConnectable(False)
@@ -367,6 +369,14 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_min_radius)
+
+        cls.a_min_radius_2d = numeric_attr_fn.create('minRadius2d', 'minRadius2d', om.MFnNumericData.kDouble , 0.1)
+        numeric_attr_fn.setMin(0.0001)
+        numeric_attr_fn.setMax(1)
+        numeric_attr_fn.setStorable(True)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_min_radius_2d)
 
         cls.a_cell_size = numeric_attr_fn.create('cellSize', 'cellSize', om.MFnNumericData.kDouble , 1.0)
         numeric_attr_fn.setMin(0.001)
@@ -557,7 +567,6 @@ class SporeNode(ompx.MPxNode):
         creating all arrays needed. read data from the storage attributes
         and add it the instance data """
 
-        print 'init data'
         # create array attr
         output = data.outputValue(plug)
         array_attr_fn = om.MFnArrayAttrsData()
