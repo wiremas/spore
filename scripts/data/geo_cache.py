@@ -115,12 +115,9 @@ class GeoCache(object):
 
         util = om.MScriptUtil()
         connected_faces = om.MIntArray()
-        #  u_coords - om.MFloatArray()
-        #  v_coords - om.MFloatArray()
 
         mesh_fn = om.MFnMesh(self.mesh)
         num_verts = mesh_fn.numVertices()
-        #  mesh_fn.getUVs(u_coords, v_coords)
         points = np.zeros(shape=(num_verts, 2))
 
         vert_iter = om.MItMeshVertex(self.mesh)
@@ -130,25 +127,21 @@ class GeoCache(object):
             vert_iter.getConnectedFaces(connected_faces)
             self.neighbor_lookup[index] = [connected_faces[i] for i in xrange(connected_faces.length())]
 
-            #  util.createFromList((0.0, 0.0), 2)
             util.createFromDouble(0.0, 0.0)
             uv_ptr = util.asFloat2Ptr()
             vert_iter.getUV(uv_ptr)
             u_coord = util.getFloat2ArrayItem(uv_ptr, 0, 0)
             v_coord = util.getFloat2ArrayItem(uv_ptr, 0, 1)
             points[index] = (u_coord, v_coord)
-            #  print 'index:', index, 'neigh:', self.neighbor_lookup[index], 'uv:', u_coord, v_coord
 
             vert_iter.next()
 
-        #  print points
         self.uv_kd_tree = kd_tree(points)
 
     def get_close_face_ids(self, u_coord, v_coord):
         """ get a list of neighbour face ids to the give u and v coords """
 
         distance, index = self.uv_kd_tree.query((u_coord, v_coord), 1)
-        #  print 'distance, index:', distance, index
         return self.neighbor_lookup[index]
 
     ################################################################################################

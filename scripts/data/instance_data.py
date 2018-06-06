@@ -245,7 +245,7 @@ class InstanceData(object):
         self.visibility.set(visibility, index)
         self.normal.set(normal, index)
         self.tangent.set(tangent, index)
-        self.u_coord.set(u_coord, index)
+        self.u_coord.set(u_coord, index) # TODO - chekci if uvs are set correctly
         self.v_coord.set(v_coord, index)
         self.poly_id.set(poly_id, index)
         self.color.set(color, index)
@@ -391,6 +391,10 @@ class InstanceData(object):
     #          self.poly_id.remove(i)
     #          self.color.remove(i)
     #
+
+    def clear(self):
+        pass
+
     def clean_up(self):
         """ remove all points that a invisible after the delete brush
         has initially hidden them and is tearn down when the has been context left """
