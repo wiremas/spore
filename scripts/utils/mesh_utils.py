@@ -34,13 +34,21 @@ def get_mesh_fn(target):
     :param target: dag path of the mesh
     :return MFnMesh """
 
-    slls = om.MSelectionList()
-    slls.add(target)
-
-    ground_path = om.MDagPath()
-    slls.getDagPath(0, ground_path)
-    ground_path.extendToShapeDirectlyBelow(0)
-    ground_node = ground_path.node()
+    if isinstance(target, str) or isinstance(target, unicode):
+        slls = om.MSelectionList()
+        slls.add(target)
+        ground_path = om.MDagPath()
+        slls.getDagPath(0, ground_path)
+        ground_path.extendToShapeDirectlyBelow(0)
+        ground_node = ground_path.node()
+    elif isinstance(target, om.MObject):
+        ground_node = target
+        ground_path = target
+    elif isinstance(target, om.MDagPath):
+        ground_node = target.node()
+        ground_path = target
+    else:
+        raise TypeError('Must be of type str, MObject or MDagPath, is type: {}'.format(type(target)))
 
     if ground_node.hasFn(om.MFn.kMesh):
         return om.MFnMesh(ground_path)
@@ -91,16 +99,18 @@ def get_tangent(normal):
 def normal_to_eulter(position, normal):
     pass
 
-def get_uv_at_point(target, point):
+def get_uv_at_point(target, point, uv_set=None, poly_id=None):
     """ get closest UV coords of the target at the given point
     :param target str: name of the target object
     :param point MPoint: """
 
-    mesh_fn = get_mesh_fn(target)
-    point = om.MPoint()
     util = om.MScriptUtil()
     uv_coords_ptr = util.asFloat2Ptr()
-    mesh_fn.getUVAtPoint(point, uv_coords_ptr)
+
+    mesh_fn = get_mesh_fn(target)
+    mesh_fn.getUVAtPoint(point, uv_coords_ptr, om.MSpace.kObject, uv_set, poly_id)
+
     u_coord = util.getFloat2ArrayItem(uv_coords_ptr, 0, 0)
     v_coord = util.getFloat2ArrayItem(uv_coords_ptr, 0, 1)
+
     return u_coord, v_coord
