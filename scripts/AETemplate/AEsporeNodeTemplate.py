@@ -25,6 +25,7 @@ class AEsporeNodeTemplate(AETemplate):
     def __init__(self, node):
         super(AEsporeNodeTemplate, self).__init__(node)
 
+        print 'init template:', node
         self._node = node
         self.callbacks = om.MCallbackIdArray()
         self.jobs = []
@@ -102,9 +103,8 @@ class AEsporeNodeTemplate(AETemplate):
         self.callCustom(self.add_instance_list, self.update_instance_list)
         self.endLayout()
 
-
         # placement options
-        self.beginLayout('Options', collapse=False)
+        self.beginLayout('Instance Transforms', collapse=False)
         self.addSeparator()
         self.addControl('alignTo', label='Align To')
         self.addControl('strength', label='Weight')
@@ -136,12 +136,9 @@ class AEsporeNodeTemplate(AETemplate):
         # brush properties
         self.beginLayout('Brush', collapse=True)
         self.callCustom(self.add_brush_btn, self.update_brush_btn, 'contextMode')
-        self.addControl('brushRadius', label='Radus')
-        self.addSeparator()
+        self.addControl('brushRadius', label='Radius')
         self.addControl('numBrushSamples', label='Number Of Samples')
-        self.addSeparator()
         self.addControl('minDistance', label='Min Distance')
-        self.addSeparator()
         self.addControl('fallOff', label='Falloff')
         self.dimControl(self._node, 'fallOff', True)
         self.endLayout()
@@ -152,20 +149,23 @@ class AEsporeNodeTemplate(AETemplate):
         self.addControl('cellSize', label='Cell Size', changeCommand=self.estimate_num_samples)
         self.addControl('minRadius', label='Min Radius', changeCommand=self.estimate_num_samples)
         self.addControl('minRadius2d', label='Min Radius 2d')
-        self.beginLayout('Filter', collapse=1)
-        self.beginLayout('Texture', collapse=0)
+        self.beginLayout('Filter', collapse=0)
+        self.beginLayout('Texture', collapse=1)
         self.addControl('emitFromTexture', label='Emit from Texture')
         self.addControl('emitTexture', label='Texture')
         self.endLayout()
+        self.beginLayout('Altitude', collapse=1)
+        self.addControl('minAltitude', 'Min Altitude', changeCommand=self.change_min_altitude)
+        self.addControl('maxAltitude', 'Max Altitude', changeCommand=self.change_max_altitude)
         self.addSeparator()
-        self.beginLayout('Altitude', collapse=0)
-        self.addControl('minAltitude', 'Min Altitude')
-        self.addControl('maxAltitude', 'Max Altitude')
+        self.addControl('minAltitudeFuzz', 'Min Altitude Fuzziness')
+        self.addControl('maxAltitudeFuzz', 'Max Altitude Fuzziness')
         self.endLayout()
+        self.beginLayout('Slope', collapse=1)
+        self.addControl('minSlope', 'Min Slope', changeCommand=self.change_min_slope)
+        self.addControl('maxSlope', 'Max Slope', changeCommand=self.change_max_slope)
         self.addSeparator()
-        self.beginLayout('Slope', collapse=0)
-        self.addControl('minSlope', 'Min Slope')
-        self.addControl('maxSlope', 'Max Slope')
+        self.addControl('slopeFuzz', 'Slope Fuzziness')
         self.endLayout()
         self.endLayout()
         #  self.beginLayout('Geo Cache', collapse=1)
@@ -230,7 +230,10 @@ class AEsporeNodeTemplate(AETemplate):
 
     def update_instance_list(self, *args):
 
-        print 'update:' , args, self._node
+        selection = cmds.ls(sl=True)[-1]
+        if cmds.objectType(selection) == 'sporeNode':
+            self._node = selection
+        #  print 'update:' , args, self._node, self.nodeName
         instanced_geo = node_utils.get_instanced_geo(self._node)
         #  if instanced_geo:
         instanced_geo = ['[{}]: {}'.format(i, name) for i, name in enumerate(instanced_geo)]
@@ -263,11 +266,15 @@ class AEsporeNodeTemplate(AETemplate):
 
         if selection:
             for item in selection:
+                print 'remove:', item
                 obj_name = item.split(' ')[-1]
                 connections = cmds.listConnections(obj_name, instancer, p=True, d=True, s=False)
+                print connections, obj_name
                 connection = [c for c in connections if c.split('.')[0] == instancer]
+                print connections
                 for connection in connections:
-                    if connection.split('.')[0] == instancer:
+                    print connection, instancer
+                    if connection.split('.')[0] == instancer.split('|')[-1]:
                         cmds.disconnectAttr('{}.matrix'.format(obj_name), connection)
 
         self.update_instance_list()
@@ -462,6 +469,32 @@ class AEsporeNodeTemplate(AETemplate):
         area = cmds.polyEvaluate(in_mesh, worldArea=True)
         cmds.setAttr(self._node + '.numSamples', int(area/cell_size) * 5)
 
+
+    def change_min_altitude(self, node):
+        min_altitude = cmds.getAttr('{}.minAltitude'.format(node))
+        max_altitude = cmds.getAttr('{}.maxAltitude'.format(node))
+        if min_altitude > max_altitude:
+            cmds.setAttr('{}.maxAltitude'.format(node), min_altitude)
+
+    def change_max_altitude(self, node):
+        min_altitude = cmds.getAttr('{}.minAltitude'.format(node))
+        max_altitude = cmds.getAttr('{}.maxAltitude'.format(node))
+        if min_altitude > max_altitude:
+            cmds.setAttr('{}.minAltitude'.format(node), max_altitude)
+
+    def change_min_slope(self, node):
+        min_slope = cmds.getAttr('{}.minSlope'.format(node))
+        max_slope = cmds.getAttr('{}.maxSlope'.format(node))
+        if min_slope > max_slope:
+            cmds.setAttr('{}.maxSlope'.format(node), min_slope)
+
+    def change_max_slope(self, node):
+        min_slope = cmds.getAttr('{}.minSlope'.format(node))
+        max_slope = cmds.getAttr('{}.maxSlope'.format(node))
+        if min_slope > max_slope:
+            cmds.setAttr('{}.minSlope'.format(node), max_slope)
+
+
     def use_pressure_cc(self, node):
         """ use pen pressure change command is triggered when the "Use Pen Pressure"
         checkbox is toggled """
@@ -490,6 +523,7 @@ class AEsporeNodeTemplate(AETemplate):
         """ toggle between uniform and non-uniform scale
         :param node: the current node name """
 
+        self._node = node
         print 'toggle', node
         uniform_scale = not cmds.getAttr('{}.uniformScale'.format(node))
         print 'foo', cmds.getAttr('{}.minScaleX'.format(node))
