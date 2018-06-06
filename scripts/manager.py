@@ -28,23 +28,42 @@ class SporeManager(object):
 
         self.ui = manager_ui.ManagerWindow()
         self.io = message_utils.IOHandler()
+        self.callbacks = om.MCallbackIdArray()
+
         self.initialize_ui()
         self.connect_signals()
-
 
     def connect_signals(self):
 
         self.ui.add_spore_clicked.connect(self.add_spore)
         #  self.ui.remove_spore_clicked.connect(self.add_spore)
         self.ui.refresh_spore_clicked.connect(self.refresh_spore)
+        self.ui.close_event.connect(self.close_event)
+
+    def add_callbacks(self):
+        self.callbacks.append(om.MEventMessage.addEventCallback('SelectionChanged', self.selection_changed))
+
+    def remove_callbacks(self):
+        for i in xrange(self.callbacks.length()):
+            om.MMessage.removeCallback(self.callbacks[i])
+
+    def selection_changed(self, *args):
+        selection = cmds.ls(sl=True, typ='sporeNode')
+        print selection
+        for geo_item, spore_items in self.wdg_tree.iteritems():
+            for spore_item in spore_items:
+                if spore_item.node_name in selection:
+                    spore_item.select()
+                else:
+                    spore_item.deselect()
 
     @Slot(str)
     def add_spore(self, name):
         """ add a new spore setup to the scene """
 
         spore_node, instancer = cmds.spore()
-        spore_transform = cmds.listRelatives(spore_node, p=True, f=True)[0]
-        cmds.rename(spore_transform, '{}SporeTransform'.format(name))
+        #  spore_transform = cmds.listRelatives(spore_node, p=True, f=True)[0]
+        cmds.rename(spore_node, '{}Spore'.format(name))
         cmds.rename(instancer, '{}SporeInstancer'.format(name))
 
         self.ui.clear_layout()
@@ -83,6 +102,7 @@ class SporeManager(object):
                 spore_wdg.context_requested.connect(self.context_request)
                 spore_wdg.view_toggled.connect(self.toggle_view)
                 spore_wdg.name_changed.connect(self.name_changed)
+                #  spore_wdg.view_solo
                 #  spore_wdg.view_instancer.connect(self.toggle_view)
                 #  spore_wdg.view_bounding_box.connect(self.toggle_view)
                 #  spore_wdg.view_bounding_boxes.connect(self.toggle_view)
@@ -120,23 +140,23 @@ class SporeManager(object):
         item_name = widget.long_name
         item_state = widget.is_selected
         if cmds.objExists(item_name):
-            cmds.select(clear=True)
 
-            #  spore_sel = cmds.ls(sl=True, l=True, type='sporeNode')
-            #  cmds.select(spore_sel)
-            #  cmds.select(item_name, add=True)
+            is_modified = event.modifiers() == Qt.ControlModifier
+            if not is_modified:
+                cmds.select(clear=True)
 
             for geo_item, spore_items in self.wdg_tree.iteritems():
-                print geo_item, spore_items
+                #  print geo_item, spore_items
                 for spore_item in spore_items:
-                    if event.modifiers() == Qt.ControlModifier\
+                    if is_modified \
                     and spore_item.is_selected:
                         cmds.select(spore_item.long_name, add=True)
                     else:
                         spore_item.deselect()
 
             widget.set_select(item_state)
-            cmds.select(item_name)
+            if not is_modified:
+                cmds.select(item_name)
 
         else:
             self.refresh_spore()
@@ -181,9 +201,13 @@ class SporeManager(object):
     def context_request(self, action):
         print 'context request', action
 
-
     def show(self):
+        self.add_callbacks()
         self.ui.show(dockable=True)
+
+    @Slot()
+    def close_event(self):
+        self.remove_callbacks()
 
 
 
