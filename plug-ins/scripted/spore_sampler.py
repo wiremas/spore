@@ -1,13 +1,16 @@
 import math, sys, random
 import maya.cmds as cmds
 import maya.OpenMaya as om
+import maya.OpenMayaRender as omr
 import maya.OpenMayaMPx as ompx
 
 import instance_data
 import node_utils
 import mesh_utils
+import render_utils
 import brush_state
 reload(instance_data)
+reload(render_utils)
 
 
 K_SAMPLET_TYPE_FLAG = '-t'
@@ -20,36 +23,56 @@ K_MIN_DISTANCE_FLAG = '-r'
 K_MIN_DISTANCE_LONG_FLAG = '-minimumRadius'
 
 class Points(object):
+    """ conatainer for sampled points.
+    holds position, normal, polyid and uv coords """
+
     def __init__(self):
         self.position = om.MPointArray()
         self.normal = om.MVectorArray()
         self.poly_id = om.MIntArray()
-        self.u_coord = om.MDoubleArray()
-        self.v_coord = om.MDoubleArray()
+        self.u_coord = [] # om.MDoubleArray()
+        self.v_coord = [] # om.MDoubleArray()
 
     def set_length(self, length):
+        """ set length for the point container """
+
         self.position.setLength(length)
         self.normal.setLength(length)
         self.poly_id.setLength(length)
-        self.u_coord.setLength(length)
-        self.v_coord.setLength(length)
+        self.u_coord = [None] * length
+        self.v_coord = [None] * length
 
-    def set(self, index, position, normal, poly_id, u_coord, v_coord):
+    def set(self, index, position, normal, poly_id, u_coord=None, v_coord=None):
+        """ set data for the given index """
+
         self.position.set(position, index)
         self.normal.set(normal, index)
         self.poly_id.set(poly_id, index)
-        self.u_coord.set(u_coord, index)
-        self.v_coord.set(v_coord, index)
+        if u_coord:
+            self.u_coord[index] = u_coord
+        if v_coord:
+            self.v_coord[index] = v_coord
+
+    def remove(self, index):
+        self.position.remove(index)
+        self.normal.remove(index)
+        self.poly_id.remove(index)
+        self.u_coord.pop(index)
+        self.v_coord.pop(index)
 
     def __iter__(self):
+        """ iterate overer the sampled points """
+
         for i in xrange(self.position.length()):
-            yield ((self.position[i].x,
+            yield ((self.position[i].x, # position
                     self.position[i].y,
                     self.position[i].z),
-                   (self.normal[i].x,
+                   (self.normal[i].x, # normal
                     self.normal[i].y,
                     self.normal[i].z),
-                   self.poly_id[i])
+                   self.poly_id[i], # poly id
+                   self.u_coord[i], # u coord
+                   self.v_coord[i]) # v coord
 
     def __len__(self):
         return self.position.length()
@@ -89,10 +112,11 @@ class SporeSampler(ompx.MPxCommand):
             raise RuntimeError('There is no sporeNode in the scene')
 
         # get sample settings from the spore node
+        # shouldn use maya commands here but i was lazy
         node_name = om.MFnDependencyNode(self.target).name()
         mode = cmds.getAttr('{}.emitType'.format(node_name))
         use_tex = cmds.getAttr('{}.emitFromTexture'.format(node_name))
-        tex = cmds.getAttr('{}.emitTexture'.format(node_name))
+        eval_shader = cmds.getAttr('{}.evalShader'.format(node_name))
         num_samples = cmds.getAttr('{}.numSamples'.format(node_name))
         cell_size = cmds.getAttr('{}.cellSize'.format(node_name))
         min_radius = cmds.getAttr('{}.minRadius'.format(node_name))
@@ -109,6 +133,14 @@ class SporeSampler(ompx.MPxCommand):
         scale_amount = cmds.getAttr('{}.scaleAmount'.format(node_name))
         min_offset = cmds.getAttr('{}.minOffset'.format(node_name))
         max_offset = cmds.getAttr('{}.maxOffset'.format(node_name))
+        min_altitude = cmds.getAttr('{}.minAltitude'.format(node_name))
+        max_altitude = cmds.getAttr('{}.maxAltitude'.format(node_name))
+        min_altitude_fuzz = cmds.getAttr('{}.minAltitudeFuzz'.format(node_name))
+        max_altitude_fuzz = cmds.getAttr('{}.maxAltitudeFuzz'.format(node_name))
+        min_slope = cmds.getAttr('{}.minSlope'.format(node_name))
+        max_slope = cmds.getAttr('{}.maxSlope'.format(node_name))
+        slope_fuzz = cmds.getAttr('{}.slopeFuzz'.format(node_name))
+        seed = cmds.getAttr('{}.seed'.format(node_name))
         sel = cmds.textScrollList('instanceList', q=True, si=True)
         if sel:
             object_index = [int(s.split(' ')[0].strip('[]:')) for s in sel]
@@ -122,15 +154,15 @@ class SporeSampler(ompx.MPxCommand):
         self.point_data = Points()
 
         if mode == 0: #'random':
-            self.random_sampling(num_samples, evaluate_uvs=use_tex)
+            self.random_sampling(num_samples, seed)
 
         elif mode == 1: #'jitter':
-            self.random_sampling(num_samples, evaluate_uvs=use_tex)
+            self.random_sampling(num_samples, seed)
             grid_partition = self.voxelize(cell_size)
             valid_points = self.grid_sampling(grid_partition)
 
         elif mode == 2: #'poisson3d':
-            self.random_sampling(num_samples, evaluate_uvs=use_tex)
+            self.random_sampling(num_samples, seed)
             cell_size = min_radius / math.sqrt(3)
             grid_partition = self.voxelize(cell_size)
             valid_points = self.disk_sampling_3d(min_radius, grid_partition, cell_size)
@@ -156,14 +188,30 @@ class SporeSampler(ompx.MPxCommand):
 
             self.point_data = point_data
 
+        # filtering
+        if use_tex:
+            try:
+                texture = cmds.listConnections('{}.emitTexture'.format(node_name))[0]
+            except RuntimeError:
+                texture = None
+
+            self.evaluate_uvs()
+            self.texture_filter(texture, 0) # TODO - Filter size
+
+
+        if min_altitude != 0 or max_altitude != 1:
+            self.altitude_filter(min_altitude, max_altitude, min_altitude_fuzz, max_altitude_fuzz)
+
+        if min_slope != 0 or max_slope != 180:
+            self.slope_filter(min_slope, max_slope, slope_fuzz)
+
         # get final rotation, scale and position values
+        # append the sampled points to the instance data object
         old_len = len(instance_data)
         instance_data.set_length(old_len + len(self.point_data))
-
-        for i, (position, normal, poly_id) in enumerate(self.point_data):
+        for i, (position, normal, poly_id, u_coord, v_coord) in enumerate(self.point_data):
             position = om.MPoint(position[0], position[1], position[2])
             normal = om.MVector(normal[0], normal[1], normal[2])
-
             direction = self.get_alignment(align_modes[align_id], normal)
             rotation = self.get_rotation(direction, strength, min_rot, max_rot)
             scale = self.get_scale(min_scale, max_scale, uni_scale)
@@ -172,6 +220,12 @@ class SporeSampler(ompx.MPxCommand):
             instance_id = random.choice(ids)
             index = old_len + i
 
+            if not u_coord:
+                u_coord = 0
+            if not v_coord:
+                v_coord = 0
+
+            # set points
             instance_data.set_point(index,
                                     om.MVector(position),
                                     scale,
@@ -180,7 +234,8 @@ class SporeSampler(ompx.MPxCommand):
                                     1,
                                     normal,
                                     tangent,
-                                    0, 0,
+                                    u_coord,
+                                    v_coord,
                                     poly_id,
                                     om.MVector(0, 0, 0))
 
@@ -190,15 +245,15 @@ class SporeSampler(ompx.MPxCommand):
     """ random sampler """
     """ ---------------------------------------------------------------- """
 
-    def random_sampling(self, num_points, seed=-1, evaluate_uvs=False):
+    def random_sampling(self, num_points, seed=-1):
         """ sample a given number of points on the previously cached triangle
         mesh. note: evaluating uvs on high poly meshes may take a long time """
 
         random.seed(seed)
         self.point_data.set_length(num_points)
-        [self.sample_triangle(random.choice(self.geo_cache.weighted_ids), i, evaluate_uvs) for i in xrange(num_points)]
+        [self.sample_triangle(random.choice(self.geo_cache.weighted_ids), i) for i in xrange(num_points)]
 
-    def sample_triangle(self,triangle_id, point_id, evaluate_uvs):
+    def sample_triangle(self,triangle_id, point_id):
         """ sample a random point on a the given triangle """
 
         r = random.random()
@@ -215,18 +270,8 @@ class SporeSampler(ompx.MPxCommand):
         s = self.geo_cache.AC[triangle_id] * s
 
         p = om.MPoint(r + s + om.MVector(self.geo_cache.p0[triangle_id]))
-
-        if evaluate_uvs:
-            uv_coord = self.util.asFloat2Ptr()
-            self.mesh_fn.getUVAtPoint(p, uv_coord, om.MSpace.kWorld, None,
-                                      om.MScriptUtil().createFromInt(self.geo_cache.poly_id[triangle_id]))
-
-            u = om.MScriptUtil.getFloat2ArrayItem(uv_coord, 0, 0)
-            v = om.MScriptUtil.getFloat2ArrayItem(uv_coord, 0, 1)
-
-        else:
-            u = 0
-            v = 0
+        u = 0
+        v = 0
 
         self.point_data.set(point_id, p, self.geo_cache.normals[triangle_id],
                             self.geo_cache.poly_id[triangle_id], u, v)
@@ -490,6 +535,100 @@ class SporeSampler(ompx.MPxCommand):
             partition.setdefault(index, []).append(i)
 
         return partition
+
+    def evaluate_uvs(self):
+        """ evaluate uv coords for all points in point data.
+        note: this may take a long time for large meshes """
+
+        in_mesh = node_utils.get_connected_in_mesh(self.target, False)
+
+        for i, (position, normal, poly_id, u_coord, v_coord) in enumerate(self.point_data):
+            if not u_coord and not v_coord:
+
+                pos = om.MPoint(position[0], position[1], position[2])
+                u_coord, v_coord = mesh_utils.get_uv_at_point(in_mesh, pos)
+
+                self.point_data.u_coord[i] = u_coord
+                self.point_data.v_coord[i] = v_coord
+
+    """ ---------------------------------------------------------------- """
+    """ filtering """
+    """ ---------------------------------------------------------------- """
+
+    def texture_filter(self, node, filter_size):
+        """ filter points based on the input texture attribute """
+
+        if not node:
+            return
+
+        color, alpha = render_utils.sample_shading_node(node, self.point_data)
+        invalid_ids = []
+        gamma = 2.2
+        for i, val in enumerate(color):
+            val = val[0]
+            if val < 0 or val > 1:
+                val = max(min(1, val), 0)
+
+            if val ** (1/gamma) > random.random():
+                invalid_ids.append(i)
+
+        invalid_ids = sorted(invalid_ids, reverse=True)
+        [self.point_data.remove(index) for index in invalid_ids]
+
+    def altitude_filter(self, min_altitude, max_altitude, min_fuzziness, max_fuzziness):
+        """ filter points based on y position relative to bounding box """
+
+        in_mesh = node_utils.get_connected_in_mesh(self.target, False)
+        dag_fn = om.MFnDagNode(in_mesh)
+
+        bb = dag_fn.boundingBox()
+        bb_y_min = bb.min().y
+        height = bb.height()
+
+        invalid_ids = []
+        for i, (position, _, _, _, _) in enumerate(self.point_data):
+            y_normalized = position[1] - bb_y_min
+            pos_rel = y_normalized / height
+
+            if pos_rel < min_altitude:
+                if pos_rel < min_altitude - min_fuzziness:
+                    invalid_ids.append(i)
+
+                elif min_altitude - pos_rel > random.uniform(0, min_fuzziness):
+                    invalid_ids.append(i)
+
+            elif pos_rel > max_altitude:
+                if pos_rel > max_altitude + max_fuzziness:
+                    invalid_ids.append(i)
+
+                elif abs(max_altitude - pos_rel) > random.uniform(0, max_fuzziness):
+                    invalid_ids.append(i)
+
+        invalid_ids = sorted(invalid_ids, reverse=True)
+        [self.point_data.remove(index) for index in invalid_ids]
+
+    def slope_filter(self, min_slope, max_slope, fuzz):
+
+        world = om.MVector(0, 1, 0)
+
+        invalid_ids = []
+        for i, (_, normal, _, _, _) in enumerate(self.point_data):
+            normal = om.MVector(normal[0], normal[1], normal[2])
+            angle = math.degrees(normal.angle(world)) + 45 * random.uniform(-fuzz, fuzz)
+
+            if angle < min_slope or angle > max_slope:
+                invalid_ids.append(i)
+
+        invalid_ids = sorted(invalid_ids, reverse=True)
+        [self.point_data.remove(index) for index in invalid_ids]
+
+
+        pass
+
+
+
+
+
 
     """ ---------------------------------------------------------------- """
     """ transformation utils """
