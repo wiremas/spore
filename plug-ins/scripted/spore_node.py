@@ -52,6 +52,8 @@ class SporeNode(ompx.MPxNode):
     # emit attributes
     a_emit_type = om.MObject()
     a_emit = om.MObject()
+    a_emit_from_texture = om.MObject()
+    a_evaluate_shader = om.MObject()
     a_num_samples = om.MObject()
     a_min_radius = om.MObject()
     a_min_radius_2d = om.MObject()
@@ -59,12 +61,19 @@ class SporeNode(ompx.MPxNode):
     a_emit_texture  = om.MObject()
     a_min_altitude = om.MObject()
     a_max_altitude = om.MObject()
+    a_min_altitude_fuzz = om.MObject()
+    a_max_altitude_fuzz = om.MObject()
     a_min_slope = om.MObject()
     a_max_slope = om.MObject()
+    a_min_slope_fuzz = om.MObject()
+    a_max_slope_fuzz = om.MObject()
     a_geo_cached = om.MObject()
     a_points_cached = om.MObject()
     a_brush_radius = om.MObject()
+    # count
     a_num_spores = om.MObject()
+    a_clear = om.MObject()
+    a_seed = om.MObject()
     # storage attributes
     a_position = om.MObject()
     a_rotation = om.MObject()
@@ -317,6 +326,13 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setKeyable(False)
         cls.addAttribute(cls.a_emit_from_texture)
 
+        cls.a_evaluate_shader = numeric_attr_fn.create('evalShader', 'evalShader', om.MFnNumericData.kBoolean, 0)
+        numeric_attr_fn.setStorable(True)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setReadable(False)
+        numeric_attr_fn.setKeyable(False)
+        cls.addAttribute(cls.a_evaluate_shader)
+
         cls.a_emit_texture  = numeric_attr_fn.createColor('emitTexture', 'emitTexture')
         numeric_attr_fn.setStorable(True)
         numeric_attr_fn.setKeyable(False)
@@ -338,6 +354,22 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_max_altitude)
 
+        cls.a_min_altitude_fuzz = numeric_attr_fn.create('minAltitudeFuzz', 'minAltitudeFuzz', om.MFnNumericData.kDouble, 0.0)
+        numeric_attr_fn.setMin(0)
+        numeric_attr_fn.setMax(1)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_min_altitude_fuzz)
+
+        cls.a_max_altitude_fuzz = numeric_attr_fn.create('maxAltitudeFuzz', 'maxAltitudeFuzz', om.MFnNumericData.kDouble, 0.0)
+        numeric_attr_fn.setMin(0)
+        numeric_attr_fn.setMax(1)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_max_altitude_fuzz)
+
         cls.a_min_slope = numeric_attr_fn.create('minSlope', 'minSlope', om.MFnNumericData.kDouble, 0.0)
         numeric_attr_fn.setMin(0)
         numeric_attr_fn.setMax(180)
@@ -354,7 +386,15 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_max_slope)
 
-        cls.a_num_samples = numeric_attr_fn.create('numSamples', 'numSamples', om.MFnNumericData.kInt, 1)
+        cls.a_min_slope_fuzz = numeric_attr_fn.create('slopeFuzz', 'slopeFuzz', om.MFnNumericData.kDouble, 0.0)
+        numeric_attr_fn.setMin(0)
+        numeric_attr_fn.setMax(1)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_min_slope_fuzz)
+
+        cls.a_num_samples = numeric_attr_fn.create('numSamples', 'numSamples', om.MFnNumericData.kInt, 1000)
         numeric_attr_fn.setMin(0)
         numeric_attr_fn.setSoftMax(10000)
         numeric_attr_fn.setStorable(False)
@@ -413,6 +453,19 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_num_spores)
+
+        cls.a_clear = numeric_attr_fn.create('clear', 'clear', om.MFnNumericData.kBoolean, 0)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_clear)
+
+        cls.a_seed = numeric_attr_fn.create('seed', 'seed', om.MFnNumericData.kInt, -1)
+        numeric_attr_fn.setMin(-1)
+        numeric_attr_fn.setStorable(False)
+        numeric_attr_fn.setKeyable(False)
+        numeric_attr_fn.setConnectable(False)
+        cls.addAttribute(cls.a_seed)
 
         # node storage attributes
         cls.a_position = typed_attr_fn.create('position', 'position', om.MFnData.kVectorArray, vect_array_attr.create())
@@ -476,6 +529,7 @@ class SporeNode(ompx.MPxNode):
         cls.addAttribute(cls.a_unique_id)
 
         cls.attributeAffects(cls.a_geo_cached, cls.a_instance_data)
+        cls.attributeAffects(cls.a_clear, cls.a_instance_data)
 
     def __init__(self):
         ompx.MPxNode.__init__(self)
