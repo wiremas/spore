@@ -53,6 +53,7 @@ class ManagerWindow(MayaQWidgetDockableMixin, QWidget):
     add_spore_clicked = Signal(str)
     remove_spore_clicked = Signal()
     refresh_spore_clicked = Signal()
+    close_event = Signal()
 
     def __init__(self, parent=None):
         super(ManagerWindow, self).__init__(parent=parent)
@@ -121,7 +122,6 @@ class ManagerWindow(MayaQWidgetDockableMixin, QWidget):
 
     def clear_items(self):
         for item in self.items:
-            print 'widget: ', item
             # item.setVisible(False)
             self.spore_layout.removeWidget(item)
             self.items.remove(item)
@@ -134,7 +134,6 @@ class ManagerWindow(MayaQWidgetDockableMixin, QWidget):
 
     def clear_layout(self):
         del self.items[:]
-        print 'items', self.items
         while self.spore_layout.count():
             child = self.spore_layout.takeAt(0)
             print child
@@ -146,6 +145,11 @@ class ManagerWindow(MayaQWidgetDockableMixin, QWidget):
         self.spore_layout.setSpacing(0)
         self.spore_layout.addStretch()
 
+    def closeEvent(self, event):
+        self.close_event.emit()
+
+    def hideEvent(self, event):
+        self.close_event.emit()
 
 
 class TreeItemWidget(QWidget):
@@ -282,10 +286,12 @@ class SporeItem(TreeItemWidget):
     context_requested = Signal(QObject, QAction)
     view_toggled = Signal(QObject, int)
     name_changed = Signal(QObject, str)
+    view_solo = Signal()
 
     def __init__(self, name, parent=None):
         super(SporeItem, self).__init__(name, parent)
 
+        self.node_name = name
         self.build_spore_ui()
         self.connect_signals()
 
@@ -318,7 +324,7 @@ class SporeItem(TreeItemWidget):
         self.view_buttons.view_instancer.connect(lambda: self.toggle_view(0))
         self.view_buttons.view_bounding_box.connect(lambda: self.toggle_view(2))
         self.view_buttons.view_bounding_boxes.connect(lambda: self.toggle_view(1))
-        #  self.view_buttons.view_hide.connect(self.view_hide.emit(self))
+        self.view_buttons.view_solo.connect(self.view_solo.emit)
 
         #  self.target_edt.returnPressed.connect(self.change_name)
         self.target_edt.editingFinished.connect(self.change_name)
@@ -402,7 +408,7 @@ class DisplayButtons(QWidget):
     view_instancer = Signal()
     view_bounding_box = Signal()
     view_bounding_boxes = Signal()
-    view_hide = Signal()
+    view_solo = Signal()
 
     def __init__(self, parent=None):
         super(DisplayButtons, self).__init__(parent)
@@ -440,13 +446,13 @@ class DisplayButtons(QWidget):
         self.bb_view_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
         view_btn_lay.addWidget(self.bb_view_btn)
 
-        #  self.disable_view_btn = QPushButton()
-        #  self.disable_view_btn.setIcon(QIcon(QPixmap(':/error.png')))
-        #  self.disable_view_btn.setFlat(True)
-        #  self.disable_view_btn.setCheckable(True)
-        #  self.disable_view_btn.setFixedWidth(25)
-        #  self.disable_view_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
-        #  view_btn_lay.addWidget(self.disable_view_btn)
+        self.solo_btn = QPushButton()
+        self.solo_btn.setIcon(QIcon(QPixmap(':/nodeGrapherUnsoloedLarge.png')))
+        self.solo_btn.setFlat(True)
+        self.solo_btn.setCheckable(True)
+        self.solo_btn.setFixedWidth(25)
+        self.solo_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        view_btn_lay.addWidget(self.solo_btn)
 
         self.connect_signals()
 
@@ -454,7 +460,7 @@ class DisplayButtons(QWidget):
         self.instance_view_btn.clicked.connect(lambda: self.toggle_view('instance'))
         self.bb_view_btn.clicked.connect(lambda: self.toggle_view('boundingbox'))
         self.bbs_view_btn.clicked.connect(lambda: self.toggle_view('boundingboxes'))
-        #  self.disable_view_btn.clicked.connect(lambda: self.toggle_view('disable'))
+        self.solo_btn.clicked.connect(lambda: self.toggle_view('solo'))
 
     def toggle_view(self, mode):
         """ toggle between diffenrent view modes
@@ -479,6 +485,6 @@ class DisplayButtons(QWidget):
             self.bb_view_btn.setChecked(False)
             #  self.bbs_view_btn.setChecked(False)
 
-        elif mode == 'disable':
-            self.view_hide.emit()
+        elif mode == 'solo':
+            self.view_solo.emit()
 
