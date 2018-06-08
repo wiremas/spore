@@ -82,19 +82,18 @@ def get_tangent(normal):
     :return MVector: tangent """
 
     if isinstance(normal, om.MVector):
-        normal = normal.x, normal.y, normal.z
+        u = normal ^ om.MVector(0, 0, 1)
+        v = normal ^ om.MVector(0, 1, 0)
+
+        if u.length() > v.length():
+            tangent = u.normal()
+        else:
+            tangent = v.normal()
+
+        return (normal ^ tangent).normal()
+
     else:
         raise TypeError('Input must be of type MVector, is: {}'.format(type(normal)))
-
-    if normal[0] >= normal[1]:
-        u = om.MVector(normal[2], 0, -normal[1])
-    else:
-        u = om.MVector(0, normal[2], -normal[1])
-
-    normal = om.MVector(normal[0], normal[1], normal[2])
-    tangent = (normal ^ u).normal()
-    return tangent
-
 
 def normal_to_eulter(position, normal):
     pass
