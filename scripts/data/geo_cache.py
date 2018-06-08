@@ -25,6 +25,8 @@ class GeoCache(object):
         self.AB = om.MVectorArray()
         self.AC = om.MVectorArray()
 
+        self.poly_verts = om.MPointArray()
+
         self.uv_kd_tree = None
         self.neighbor_lookup = {}
 
@@ -42,6 +44,9 @@ class GeoCache(object):
         mesh_fn = om.MFnMesh(self.mesh)
         num_polys = mesh_fn.numPolygons() # TODO - get in mesh fn
         num_iter = num_polys / 100
+
+        # store ferts for validating the cache later
+        mesh_fn.getPoints(self.poly_verts)
 
         # get bb in world space
         dag_fn = om.MFnDagNode(self.mesh)
@@ -143,6 +148,63 @@ class GeoCache(object):
 
         distance, index = self.uv_kd_tree.query((u_coord, v_coord), 1)
         return self.neighbor_lookup[index]
+
+
+    def validate_cache(self):
+        """ check if the current cache is valid """
+
+        points = om.MPointArray()
+        mesh_fn = om.MFnMesh(self.mesh)
+        mesh_fn.getPoints(points)
+
+        if points.length() != self.poly_verts.length():
+            return False
+
+        for i in xrange(points.length()):
+            if points[i] != self.poly_verts[i]:
+                return False
+
+        return True
+
+
+        """
+        index = 0
+        tri_points = om.MPointArray()
+        tri_ids = om.MIntArray()
+        poly_iter = om.MItMeshPolygon(self.mesh)
+        while not poly_iter.isDone():
+
+            # get face triangles
+            poly_index = poly_iter.index()
+            poly_iter.getTriangles(tri_points, tri_ids, om.MSpace.kWorld)
+
+            # get triangle data
+            for i in xrange(tri_points.length() / 3):
+                #  assert self.p0[i * 3] == tri_points[i * 3]
+                #  assert self.p1[i * 3 + 1] == tri_points[i * 3 + 1]
+                #  assert self.p2[i * 3 + 2] == tri_points[i * 3 + 2]
+                print self.p0[i*3].x, tri_points[i*3].x
+                print self.p0[i*3].y, tri_points[i*3].y
+                print self.p0[i*3].z, tri_points[i*3].z
+                print '-'
+                print self.p0[i*3+1].x, tri_points[i*3+1].x
+                print self.p0[i*3+1].y, tri_points[i*3+1].y
+                print self.p0[i*3+1].z, tri_points[i*3+1].z
+                print '-'
+                print self.p0[i*3+2].x, tri_points[i*3+2].x
+                print self.p0[i*3+2].y, tri_points[i*3+2].y
+                print self.p0[i*3+2].z, tri_points[i*3+2].z
+                #  except AssertionError:
+                #      return False
+
+                index += 1
+
+            poly_iter.next()
+
+        return True
+        """
+
+
 
     ################################################################################################
     # cache property
