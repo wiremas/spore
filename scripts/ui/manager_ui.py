@@ -1,6 +1,8 @@
 import sip
 
-from PySide2.QtWidgets import QWidget, QGridLayout, QPushButton, QFrame, QHBoxLayout, QVBoxLayout, QLabel, QScrollArea, QSpacerItem, QLineEdit, QAction, QMenu
+from PySide2.QtWidgets import (QWidget, QGridLayout, QPushButton, QFrame,
+                               QHBoxLayout, QVBoxLayout, QLabel, QScrollArea,
+                               QSpacerItem, QLineEdit, QAction, QMenu)
 from PySide2.QtWidgets import QSizePolicy
 from PySide2.QtCore import Signal, QObject, Qt, QEvent
 from PySide2.QtGui import QPalette, QColor, QPixmap, QIcon
@@ -8,45 +10,6 @@ from PySide2.QtGui import QPalette, QColor, QPixmap, QIcon
 from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 
 from maya import cmds
-
-"""
-class NavigatorUI(QWidget):
-
-    def __init__(self, parent=None):
-        super(NavigatorUI, self).__init__(parent=parent)
-        self.build_ui()
-
-    def build_ui(self):
-        #  layout = QHBoxLayout()
-        layout = QGridLayout(self)
-        self.setLayout(layout)
-
-        self.add_btn = QPushButton()
-        self.add_btn.setIcon(QIcon(QPixmap(':/teAdditive.png')))
-        layout.addWidget(self.add_btn, 0, 0, 1, 1)
-        remove_btn = QPushButton('-')
-        layout.addWidget(remove_btn, 0, 1, 1, 1)
-        refresh_btn = QPushButton('refresh')
-        layout.addWidget(refresh_btn, 0, 2, 1, 1)
-
-        scroll_wdg = QWidget(self)
-        scroll_area = QScrollArea()
-        #  scroll_area.setWidgetResizable(True)
-        #  scroll_area.setStyleSheet("QScrollArea { background-color: rgb(57,57,57);}");
-        #  scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        #  scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area.setWidget(scroll_wdg)
-
-        self.spore_layout = QVBoxLayout()
-        self.spore_layout.setContentsMargins(1, 1, 3, 1)
-        self.spore_layout.setSpacing(0)
-        self.spore_layout.addStretch()
-        scroll_wdg.setLayout(self.spore_layout)
-        layout.addWidget(scroll_area, 1, 0, 1, 3)
-        """
-
-
-
 
 
 class ManagerWindow(MayaQWidgetDockableMixin, QWidget):
@@ -74,7 +37,7 @@ class ManagerWindow(MayaQWidgetDockableMixin, QWidget):
         self.setLayout(layout)
 
         self.name_edt = QLineEdit()
-        self.name_edt.setPlaceholderText('Create New Setup')
+        self.name_edt.setPlaceholderText('Create New')
         self.name_edt.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         layout.addWidget(self.name_edt, 0, 0, 1, 1)
 
@@ -113,34 +76,33 @@ class ManagerWindow(MayaQWidgetDockableMixin, QWidget):
         self.refresh_btn.clicked.connect(self.refresh_spore_clicked.emit)
 
     def append_item(self, item):
-        #  item.setParent(self)
         self.items.append(item)
         self.spore_layout.insertWidget(0, item)
 
     def remove_item(self, item):
         pass
 
-    def clear_items(self):
-        for item in self.items:
-            # item.setVisible(False)
-            self.spore_layout.removeWidget(item)
-            self.items.remove(item)
-            item.delateLater()
-            del item
-        #  del self.itmes
-        #  self.spore_layout.clear()
-
-        self.spore_layout.update()
+    #  def clear_items(self):
+    #      for item in self.items:
+    #          self.spore_layout.removeWidget(item)
+    #          self.items.remove(item)
+    #          item.delateLater()
+    #          del item
+    #
+    #      self.spore_layout.update()
 
     def clear_layout(self):
+        """ remove all child widgets and layout """
+
+        self.name_edt.setText('')
+
         del self.items[:]
         while self.spore_layout.count():
             child = self.spore_layout.takeAt(0)
-            print child
             if child.widget() is not None:
                 child.widget().deleteLater()
-            elif child.layout() is not None:
-                clear_layout(child.layout())
+            #  elif child.layout() is not None:
+            #      self.clear_layout(child.layout())
 
         self.spore_layout.setSpacing(0)
         self.spore_layout.addStretch()
@@ -163,6 +125,7 @@ class TreeItemWidget(QWidget):
         :param name: full dag path name of the item """
         super(TreeItemWidget, self).__init__(parent)
 
+        self.parent = parent
         self.long_name = name
         self.name = name.split('|')[-1]
         self.is_selected = False
@@ -227,6 +190,7 @@ class GeoItem(TreeItemWidget):
     def __init__(self, name, parent=None):
         super(GeoItem, self).__init__(name, parent)
 
+        self.parent = parent
         self.build_geo_ui()
         self.connect_signals()
 
@@ -275,7 +239,6 @@ class GeoItem(TreeItemWidget):
 
     def toggle_children(self):
         state = self.expand_btn.isChecked()
-        print 'toggle', state
         self.child_wdg.setVisible(state)
 
 
@@ -286,7 +249,7 @@ class SporeItem(TreeItemWidget):
     context_requested = Signal(QObject, QAction)
     view_toggled = Signal(QObject, int)
     name_changed = Signal(QObject, str)
-    view_solo = Signal()
+    view_solo = Signal(QObject, bool)
 
     def __init__(self, name, parent=None):
         super(SporeItem, self).__init__(name, parent)
@@ -294,6 +257,9 @@ class SporeItem(TreeItemWidget):
         self.node_name = name
         self.build_spore_ui()
         self.connect_signals()
+
+        if name in cmds.ls(sl=1, typ='sporeNode'):
+            self.select()
 
     def build_spore_ui(self):
 
@@ -321,11 +287,12 @@ class SporeItem(TreeItemWidget):
         self.item_lay.addWidget(self.view_buttons, 0, 3, 1, 1)
 
     def connect_signals(self):
-        self.view_buttons.view_instancer.connect(lambda: self.toggle_view(0))
-        self.view_buttons.view_bounding_box.connect(lambda: self.toggle_view(2))
-        self.view_buttons.view_bounding_boxes.connect(lambda: self.toggle_view(1))
-        self.view_buttons.view_solo.connect(self.view_solo.emit)
+        self.view_buttons.view_instancer.connect(lambda: self.view_toggled.emit(self, 0))
+        self.view_buttons.view_bounding_box.connect(lambda: self.view_toggled.emit(self, 2))
+        self.view_buttons.view_bounding_boxes.connect(lambda: self.view_toggled.emit(self, 1))
+        self.view_buttons.view_solo.connect(self.toggle_solo)
 
+        #  self.view_toggled.emit(self, state)
         #  self.target_edt.returnPressed.connect(self.change_name)
         self.target_edt.editingFinished.connect(self.change_name)
 
@@ -354,17 +321,17 @@ class SporeItem(TreeItemWidget):
         # build context menu
         menu = QMenu(self)
         menu.setStyleSheet("background-color: rgb(68,68,68);")
-        instance_displ_act = menu.addAction("Display Instances")
-        bb_displ_act = menu.addAction("Display Bounding Box")
-        bbs_displ_act = menu.addAction("Display Bounding Boxes")
-        hide_act = menu.addAction("Hide Selected Setup(s)")
+        #  instance_displ_act = menu.addAction("Display Instances")
+        #  bb_displ_act = menu.addAction("Display Bounding Box")
+        #  bbs_displ_act = menu.addAction("Display Bounding Boxes")
+        #  hide_act = menu.addAction("Hide Selected Setup(s)")
         #  menu.addSeparator()
         #  convert_particle_act = menu.addAction("Convert to Particles")
         #  convert_particle_act = menu.addAction("Write to Alembic")
         #  convert_particle_act = menu.addAction("Write to Katana Live Group")
         #  convert_particle_act = menu.addAction("Combine Selected Setups")
         menu.addSeparator()
-        remove_act = menu.addAction("Remove Selected Setup(s)")
+        remove_act = menu.addAction("Delete")
 
         action = menu.exec_(self.mapToGlobal(event.pos()))
         self.context_requested.emit(self, action)
@@ -390,8 +357,15 @@ class SporeItem(TreeItemWidget):
 
         return self.is_selected
 
-    def toggle_view(self, state):
-        self.view_toggled.emit(self, state)
+    #  def toggle_view(self, state):
+    #      self.view_toggled.emit(self, state)
+
+    def toggle_solo(self):
+        """ check if widget is soloed and emit the view_solo signal """
+
+        solo = self.view_buttons.solo_btn.isChecked()
+        self.view_solo.emit(self, solo)
+
 
     def change_name(self):
         """ trigger for name changed event """
