@@ -47,40 +47,33 @@ class SporeCommand(ompx.MPxCommand):
     def doIt(self, args):
         """ do """
 
-        print 'parse'
         self.parse_args(args)
 
         # create sporeNode and instancer
         #  spore_transform = self.dg_mod.createNode('transform')
         self.spore = self.dg_mod.createNode('sporeNode')
         self.instancer = self.dag_mod.createNode('instancer')
-        print 1
 
         # rename nodes
         if self.name:
             self.name = '{}_'.format(self.name)
-            print 'name:', self.name
         #  self.dg_mod.renameNode(spore_transform, '{}spore'.format(self.name))
         self.dg_mod.renameNode(self.spore, '{}spore'.format(self.name))
         self.dag_mod.renameNode(self.instancer, '{}sporeInstancer'.format(self.name))
-        print 2
 
         # get spore node plugs
         dg_fn = om.MFnDependencyNode(self.spore)
         in_mesh_plug = dg_fn.findPlug('inMesh')
         instance_data_plug = dg_fn.findPlug('instanceData')
-        print 3
 
         # get instancer plugs
         dg_fn = om.MFnDagNode(self.instancer)
         in_points_plug = dg_fn.findPlug('inputPoints')
         in_hierarchy_plug = dg_fn.findPlug('inputHierarchy')
-        print 4
 
         # get target out mesh plug
         dag_fn = om.MFnDagNode(self.target)
         out_mesh_plug = dag_fn.findPlug('outMesh')
-        print 5
 
         # get source matrix plugs
         matrix_plug_array = om.MPlugArray()
@@ -89,7 +82,6 @@ class SporeCommand(ompx.MPxCommand):
             matrix_plug = dag_fn.findPlug('matrix')
             matrix_plug_array.append(matrix_plug)
 
-        print 6
         # hook everything up
         self.dg_mod.connect(instance_data_plug, in_points_plug)
         self.dg_mod.connect(out_mesh_plug, in_mesh_plug)
@@ -97,7 +89,6 @@ class SporeCommand(ompx.MPxCommand):
             in_plug = in_hierarchy_plug.elementByLogicalIndex(i)
             self.dg_mod.connect(matrix_plug_array[i], in_plug)
 
-        print 1
         self.redoIt()
 
     def redoIt(self):
@@ -135,7 +126,6 @@ class SporeCommand(ompx.MPxCommand):
 
         if arg_data.isFlagSet(k_name_flag):
             self.name = arg_data.getFlagArgument(k_name_flag, 0)
-            print 'name:', self.name
 
         selection = om.MSelectionList()
         arg_data.getObjects(selection)
