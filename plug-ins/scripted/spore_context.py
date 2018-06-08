@@ -213,15 +213,19 @@ class SporeToolCmd(ompx.MPxToolCommand):
     """ -------------------------------------------------------------------- """
 
     def place_action(self, flag):
-        position, normal, tangent = self.get_brush_coords()
+        b_position, b_normal, b_tangent = self.get_brush_coords()
 
         # return if we under min_distance threashold
         if not self.brush_state.shift_mod and self.last_brush_position:
             min_distance = self.brush_state.settings['min_distance']
-            if position.distanceTo(self.last_brush_position) < min_distance:
+            if b_position.distanceTo(self.last_brush_position) < min_distance:
                 return
+            #  else:
+        position = b_position
+        normal = b_normal
+        tangent = b_tangent
 
-        self.last_brush_position = position
+        self.last_brush_position = b_position
 
         # set number of samples or default to 1 in place mode
         if self.brush_state.settings['mode'] == 'spray': # spray mode
@@ -243,9 +247,9 @@ class SporeToolCmd(ompx.MPxToolCommand):
                     self.spray_coords.append((angle, distance))
 
                 # place point on brush disk
-                rotation = om.MQuaternion(angle, normal)
-                tangential_vector = tangent.rotateBy(rotation)
-                rand_pos =  position + tangential_vector * distance
+                rotation = om.MQuaternion(angle, b_normal)
+                tangential_vector = b_tangent.rotateBy(rotation)
+                rand_pos =  b_position + tangential_vector * distance
                 position, normal = mesh_utils.get_closest_point_and_normal(rand_pos, self.brush_state.target)
                 tangent = mesh_utils.get_tangent(normal)
 
@@ -350,6 +354,28 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def random_align_action(self, flag):
         """ """
 
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+        neighbour = self.instance_data.get_closest_points(position, radius, self.brush_state.settings['ids'])
+        if neighbour:
+            #  average = self.instance_data.get_rotation_average(neighbour)
+            #  average = om.MVector(average[0], average[1], average[2])
+            self.set_cache_length(len(neighbour))
+        else:
+            return
+
+        for i, index in enumerate(neighbour):
+            rotation = self.instance_data.rotation[index]
+            normal = self.instance_data.normal[index]
+            #  direction = self.get_alignment(normal)
+            #  rotation = self.rotate_into(average, rotation)
+            rotation = self.randomize_rotation(rotation, self.brush_state.settings['strength'])
+            self.rotation.set(rotation, i)
+
+        self.instance_data.set_points(neighbour, rotation=self.rotation)
+        self.instance_data.set_state()
+
+
         print 'Randomize align. Not implemented yet'
 
     """ ------------------------------------------------------- """
@@ -404,6 +430,8 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.instance_data.set_state()
 
     def random_scale_action(self, flag):
+        """ randomize scale """
+
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
         neighbour = self.instance_data.get_closest_points(position, radius, self.brush_state.settings['ids'])
@@ -412,7 +440,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
             amount = self.brush_state.settings['scale_amount']
         else:
             return
-
 
         for i, index in enumerate(neighbour):
             falloff_weight = self.get_falloff_weight(self.instance_data.position[index])
@@ -461,7 +488,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.instance_data.set_state()
 
     """ ------------------------------------------------------- """
-    """ index """
+    """ delete """
     """ ------------------------------------------------------- """
 
     def delete_action(self, flag):
@@ -538,8 +565,37 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         return direction
 
+    def randomize_rotation(self, rotation, random_weight):
+        """ randomize the given rotation values by 10 degrees multiply
+        by the random_weight """
 
-    def rotate_into(self, direction, rotation, index=0):
+        factor = 5 * random_weight
+        rand_x = np.radians(random.uniform(-factor, factor))
+        rand_y = np.radians(random.uniform(-factor, factor))
+        rand_z = np.radians(random.uniform(-factor, factor))
+
+        util = om.MScriptUtil()
+        util.createFromDouble(rand_x, rand_y, rand_z)
+        rand_rot_ptr = util.asDoublePtr()
+
+        rand_mat = om.MTransformationMatrix()
+        rand_mat.setRotation(rand_rot_ptr, om.MTransformationMatrix.kXYZ)
+
+        util.createFromDouble(np.radians(rotation.x),
+                              np.radians(rotation.y),
+                              np.radians(rotation.z))
+        rot_ptr = util.asDoublePtr()
+
+        rot_mat = om.MTransformationMatrix()
+        rot_mat.setRotation(rot_ptr, om.MTransformationMatrix.kXYZ)
+
+        result_mat = rot_mat.asMatrix() * rand_mat.asMatrix()
+        rotation = om.MTransformationMatrix(result_mat).rotation()
+        return om.MVector(math.degrees(rotation.asEulerRotation().x),
+                        math.degrees(rotation.asEulerRotation().y),
+                        math.degrees(rotation.asEulerRotation().z))
+
+    def rotate_into(self, direction, rotation):
         """ slerp the given rotation values into the direction given
         by the brush_state
         @param direction MVector: the target direction
