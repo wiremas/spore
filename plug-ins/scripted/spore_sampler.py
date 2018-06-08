@@ -116,7 +116,6 @@ class SporeSampler(ompx.MPxCommand):
         node_name = om.MFnDependencyNode(self.target).name()
         mode = cmds.getAttr('{}.emitType'.format(node_name))
         use_tex = cmds.getAttr('{}.emitFromTexture'.format(node_name))
-        eval_shader = cmds.getAttr('{}.evalShader'.format(node_name))
         num_samples = cmds.getAttr('{}.numSamples'.format(node_name))
         cell_size = cmds.getAttr('{}.cellSize'.format(node_name))
         min_radius = cmds.getAttr('{}.minRadius'.format(node_name))
@@ -146,6 +145,9 @@ class SporeSampler(ompx.MPxCommand):
             object_index = [int(s.split(' ')[0].strip('[]:')) for s in sel]
         else:
             elements = cmds.textScrollList('instanceList', q=True, ai=True)
+            if not elements:
+                raise RuntimeError('No instance geometry selected')
+
             object_index = [int(e.split(' ')[0].strip('[]:')) for e in elements]
         ids = object_index
 
