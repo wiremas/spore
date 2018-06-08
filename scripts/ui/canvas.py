@@ -1,6 +1,7 @@
 import math
 from abc import ABCMeta, abstractmethod
 
+import maya.cmds as cmds
 import maya.OpenMaya as om
 
 from PySide2.QtGui import QPainter, QPen, QPainterPath
@@ -23,25 +24,30 @@ class Canvas(QWidget):
         #  self.setAttribute(Qt.WA_PaintOnScreen)
         #  self.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        self.resize_event_filter = event_filter.CanvasEventFilter()
+        self.canvas_event_filter = event_filter.CanvasEventFilter()
         self.install_event_filter()
         self.resize()
         self.show()
 
     def install_event_filter(self):
         """ install the resize evenet filter """
-        self.resize_event_filter.resize_event.connect(self.resize)
+
+        self.canvas_event_filter.enter_event.connect(self.enter_widget)
+        self.canvas_event_filter.leave_event.connect(self.leave_widget)
+        self.canvas_event_filter.resize_event.connect(self.resize)
         view_wdg = window_utils.active_view_wdg()
-        view_wdg.installEventFilter(self.resize_event_filter)
+        view_wdg.installEventFilter(self.canvas_event_filter)
 
     def remove_event_filter(self):
         """ clean up the resize evenet filter """
+
         view_wdg = window_utils.active_view_wdg()
-        view_wdg.removeEventFilter(self.resize_event_filter)
+        view_wdg.removeEventFilter(self.canvas_event_filter)
 
     @Slot(QEvent)
     def resize(self):
         """ resize the widget to match the viewport """
+
         view_wdg = window_utils.active_view_wdg()
         wdg_size = view_wdg.rect()
         wdg_pos = view_wdg.pos()
@@ -49,14 +55,21 @@ class Canvas(QWidget):
         self.setGeometry(abs_pos.x(), abs_pos.y(), wdg_size.width(), wdg_size.height())
 
     @Slot(QEvent)
-    def set_focus(self):
+    def enter_widget(self):
         """ set focuts to the panel under the cursor """
 
         panel = cmds.getPanel(underPointer=True)
         cmds.setFocus(panel)
+        self.setFocus()
+
+    @Slot(QEvent)
+    def leave_widget(self):
+
+        pass
 
     def __del__(self):
         """ remove event filter when the canvas is deleted """
+
         self.remove_event_filter()
 
 
@@ -70,8 +83,8 @@ class CircularBrush(Canvas):
     based on the given brush state """
 
     def __init__(self, brush_state):
-        super(CircularBrush, self).__init__()
 
+        super(CircularBrush, self).__init__()
         self.brush_state = brush_state
 
     def paintEvent(self, event):
@@ -115,24 +128,15 @@ class CircularBrush(Canvas):
                             self.brush_state.tangent[1],
                             self.brush_state.tangent[2])
 
-            # draw dragger shapes
-            #  if self.brush_state.drag_mode:
-            #      pos_x, pos_y = window_utils.world_to_view(pnt)
-            #
-            #      shapes = []
-            #      shapes.append([(pos_x - 15, pos_y - 15), (pos_x + 15, pos_y + 15)])
-            #      shapes.append([(pos_x - 15, pos_y + 15), (pos_x + 15, pos_y - 15)])
-            #      return shapes
-            #
-
             # get point at normal and tangent
             #  n_pnt = pnt + (nrm * self._state.radius * 0.75)
             #  t_str = pnt + (tan * self._state.radius * 0.75)
             #  t_end = pnt + (tan * self._state.radius)
+            #  shape.append(window_utils.world_to_view(pnt))
 
+            shape = []
             # get circle points
             theta = math.radians(360 / 20)
-            shape = []
             for i in xrange(40 + 1):
                 rot = om.MQuaternion(theta * i, nrm)
                 rtan = tan.rotateBy(rot)
