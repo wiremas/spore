@@ -4,7 +4,7 @@ import maya.OpenMayaUI as omui
 from shiboken2 import wrapInstance
 from PySide2.QtWidgets import QWidget
 from PySide2.QtCore import QObject, QEvent, Signal, Slot, QPoint, Qt
-from PySide2.QtGui import QKeyEvent
+from PySide2.QtGui import QKeyEvent, QGuiApplication
 
 import window_utils
 
@@ -15,6 +15,7 @@ class CanvasEventFilter(QObject):
 
     resize_event = Signal(QEvent)
     enter_event = Signal(QEvent)
+    leave_event = Signal(QEvent)
 
     def __init__(self):
         super(CanvasEventFilter, self).__init__() #eventFilter(obj, event)
@@ -26,11 +27,17 @@ class CanvasEventFilter(QObject):
         if event.type() == QEvent.Enter:
             self.enter_event.emit(event)
 
+        if event.type() == QEvent.Leave:
+            self.leave_event.emit(event)
+
         return False
 
-
-
 class KeyEventFilter(QObject):
+    """ event filter for the brush context
+    filter key events. the following singnals are emitted:
+    meta_pressed / meta_released
+    ctrl_pressed / ctrl_released
+    ctrl_shift_pressed / shift_released"""
 
     # modifier
     meta_pressed = Signal() # ctrl on MacOs, windows ond win
@@ -108,45 +115,52 @@ class MouseEventFilter(QObject):
         super(MouseEventFilter, self).__init__()
         self.parent = parent
         self.is_clicked = False
-        self.is_modified = False
 
     def eventFilter(self, source, event):
 
-        if isinstance(event, QKeyEvent) and not event.isAutoRepeat():
-            if event.type() == QEvent.KeyPress and not self.is_clicked:
-                if event.key() != Qt.Key_Shift and event.key() != Qt.Key_Meta:
-                    self.is_modified = True
-            if event.type() == QEvent.KeyRelease and not self.is_clicked:
-                if event.key() != Qt.Key_Shift and event.key() != Qt.Key_Meta:
-                    self.is_modified = False
+        modifier = QGuiApplication.queryKeyboardModifiers()
 
-        # Mouse Events
         if event.type() == QEvent.MouseMove:
+
+            # emit mouse moved signa and the drag signal if the mouse
+            # button is clicked
             position = event.pos()
             self.mouse_moved.emit(position)
-            if self.is_clicked and not self.is_modified:
+            if self.is_clicked:
                 self.dragged.emit(position)
             return False
 
         if event.type() == QEvent.Wheel:
+
+            # emit the mouse moved signal when the mousewheel is used
             position = event.pos()
             self.mouse_moved.emit(position)
 
         if event.type() == QEvent.MouseButtonPress:
-            self.is_clicked = True
-            if not self.is_modified:
+
+            # set the mouse button clicked state and emit the clicked signal
+            # if neither control nor alt modifiers are pressed
+            if not modifier == Qt.ControlModifier\
+            and not modifier == Qt.AltModifier:
+                self.is_clicked = True
                 position = event.pos()
                 self.clicked.emit(position)
                 return False
 
         if event.type() == QEvent.MouseButtonRelease:
+
+            # release the mouse button clicked state and emit the release
+            # signal if neither ctontrol nor alt modifiers are pressed.
             self.is_clicked = False
-            if not self.is_modified:
+            if not modifier == Qt.ControlModifier\
+            and not modifier == Qt.AltModifier:
                 position = event.pos()
                 self.released.emit(position)
                 return False
 
         if event.type() == QEvent.Leave:
+
+            # emit a leave signal
             self.leave.emit()
             return False
 
