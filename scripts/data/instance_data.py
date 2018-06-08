@@ -393,7 +393,10 @@ class InstanceData(object):
     #
 
     def clear(self):
-        pass
+        """ remove all points from the object """
+        [self.visibility.set(0, i) for i in xrange(self.visibility.length())]
+        self.clean_up()
+        self.set_state()
 
     def clean_up(self):
         """ remove all points that a invisible after the delete brush
