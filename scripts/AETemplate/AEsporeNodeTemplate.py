@@ -25,7 +25,6 @@ class AEsporeNodeTemplate(AETemplate):
     def __init__(self, node):
         super(AEsporeNodeTemplate, self).__init__(node)
 
-        print 'init template:', node
         self._node = node
         self.callbacks = om.MCallbackIdArray()
         self.jobs = []
@@ -40,15 +39,14 @@ class AEsporeNodeTemplate(AETemplate):
         self.endScrollLayout()
 
         self.add_script_job()
+        self.add_callbacks()
 
     def __del__(self):
         for i in xrange(self.callbacks.length()):
-            print 'remove cb'
             om.Message().removeCallback(self.callbacks[i])
 
         # kill script jobs
         for job in self.jobs:
-            print 'kill script job:', job
             cmds.scriptJon(kill=job)
 
     def add_script_job(self):
@@ -68,19 +66,21 @@ class AEsporeNodeTemplate(AETemplate):
             except RuntimeError:
                 pass
 
-
     def add_callbacks(self):
-        """ register a bunch of node callbacks to hook our qt widget
-        this is kind of hacky solution since this only adds our custom
-        navigator widgets after one of the callbacks has been triggered.
-        desireably we'd like to hook the widget after node initialization.
-        but since the the parent layout in the AE does not exist at node init,
-        we need to find a way to parent the widget at a later point in time """
+        """ add callbacks """
 
         if self.callbacks.length() <= 1:
             m_node = node_utils.get_mobject_from_name(self._node)
-            self.callbacks.append(om.MNodeMessage().addAttributeChangedCallback(m_node, self.hook_qt_widget))
-            self.callbacks.append(om.MDGMessage().addConnectionCallback(self.hook_qt_widget))
+            self.callbacks.append(om.MEventMessage.addEventCallback('SelectionChanged', self.selection_changed))
+            #  self.callbacks.append(om.MNodeMessage().addAttributeChangedCallback(m_node, self.hook_qt_widget))
+            #  self.callbacks.append(om.MDGMessage().addConnectionCallback(self.hook_qt_widget))
+
+    def selection_changed(self, *args):
+        """ make sure to opt out of the current spore tool when the selction
+        is changed """
+
+        if cmds.currentCtx().startswith('spore'):
+            cmds.setToolTo('selectSuperContext')
 
     def hook_qt_widget(self, *args):
         """ hook the navigator widget to the attribute editor
@@ -97,6 +97,7 @@ class AEsporeNodeTemplate(AETemplate):
             self.navigator.update_ui()
 
     def build_ui(self):
+        """ builde node ui """
 
         # instance source
         self.beginLayout('Instanced Objects', collapse=0)
@@ -107,11 +108,14 @@ class AEsporeNodeTemplate(AETemplate):
         self.beginLayout('Instance Transforms', collapse=False)
         self.addSeparator()
         self.addControl('alignTo', label='Align To')
-        self.addControl('strength', label='Weight')
+        self.addControl('strength', label='Weight',
+                        annotation='Target Vector Weight')
         self.addControl('minRotation', label='Min Rotation')
         self.addControl('maxRotation', label='Max Rotation')
         self.addSeparator()
-        self.addControl('uniformScale', label='Uniform Scale', changeCommand=self.uniform_scale_toggle)
+        self.addControl('uniformScale', label='Uniform Scale',
+                        changeCommand=self.uniform_scale_toggle,
+                        annotation='Scane Uniformly: Use X Values')
         self.addControl('minScale', label='Min Scale')
         self.addControl('maxScale', label='Max Scale')
         self.addControl('scaleFactor', label='Scale Factor')
@@ -120,80 +124,83 @@ class AEsporeNodeTemplate(AETemplate):
         self.addSeparator()
         self.addControl('minOffset', label='Min Offset')
         self.addControl('maxOffset', label='Max Offset')
-        #  self.beginLayout('Flood', collapse=True)
-        #  cmds.button('floodBtn', l='Flood Values')
-        #  self.endLayout()
+
+        # preassure mapping controls
         #  self.addSeparator()
-        #  self.addControl('minId', label='Min Id', changeCommand=lambda _: self.index_cc('min'))
-        #  self.addControl('maxId', label='Max Id', changeCommand=lambda _: self.index_cc('max'))
+        #  self.addControl('minId', label='Min Id',
+        #                  changeCommand=lambda _: self.index_cc('min'))
+        #  self.addControl('maxId', label='Max Id',
+        #                  changeCommand=lambda _: self.index_cc('max'))
         #  self.addSeparator()
-        #  self.addControl('usePressureMapping', label='Use Pen Pressure', changeCommand=self.use_pressure_cc)
+        #  self.addControl('usePressureMapping', label='Use Pen Pressure',
+        #                  changeCommand=self.use_pressure_cc)
         #  self.addControl('pressureMapping', label='Pessure Mapping')
         #  self.addControl('minPressure', label='Min Pessure')
         #  self.addControl('maxPressure', label='Max Pessure')
         self.endLayout()
 
-        # brush properties
+        # brush attributes
         self.beginLayout('Brush', collapse=True)
         self.callCustom(self.add_brush_btn, self.update_brush_btn, 'contextMode')
         self.addControl('brushRadius', label='Radius')
         self.addControl('numBrushSamples', label='Number Of Samples')
         self.addControl('minDistance', label='Min Distance')
         self.addControl('fallOff', label='Falloff')
-        self.dimControl(self._node, 'fallOff', True)
         self.endLayout()
-        # emit properties
+
+        # emit attributes
         self.beginLayout('Emit', collapse=1)
-        self.addControl('emitType', label='Type', changeCommand=self.emit_type_cc)
+        self.addControl('emitType', label='Type',
+                        changeCommand=self.emit_type_cc)
         self.addControl('numSamples', label='Number Of Samples')
-        self.addControl('cellSize', label='Cell Size', changeCommand=self.estimate_num_samples)
-        self.addControl('minRadius', label='Min Radius', changeCommand=self.estimate_num_samples)
+        self.addControl('cellSize', label='Cell Size',
+                        changeCommand=self.estimate_num_samples)
+        self.addControl('minRadius', label='Min Radius',
+                        changeCommand=self.estimate_num_samples)
         self.addControl('minRadius2d', label='Min Radius 2d')
+
+        # filter attributes
         self.beginLayout('Filter', collapse=0)
+        # texture filter attributes
         self.beginLayout('Texture', collapse=1)
         self.addControl('emitFromTexture', label='Emit from Texture')
         self.addControl('emitTexture', label='Texture')
         self.endLayout()
+        # altitude filter attributes
         self.beginLayout('Altitude', collapse=1)
-        self.addControl('minAltitude', 'Min Altitude', changeCommand=self.change_min_altitude)
-        self.addControl('maxAltitude', 'Max Altitude', changeCommand=self.change_max_altitude)
+        self.addControl('minAltitude', 'Min Altitude',
+                        changeCommand=self.change_min_altitude)
+        self.addControl('maxAltitude', 'Max Altitude',
+                        changeCommand=self.change_max_altitude)
         self.addSeparator()
         self.addControl('minAltitudeFuzz', 'Min Altitude Fuzziness')
         self.addControl('maxAltitudeFuzz', 'Max Altitude Fuzziness')
         self.endLayout()
+        # slope filter attributes
         self.beginLayout('Slope', collapse=1)
-        self.addControl('minSlope', 'Min Slope', changeCommand=self.change_min_slope)
-        self.addControl('maxSlope', 'Max Slope', changeCommand=self.change_max_slope)
+        self.addControl('minSlope', 'Min Slope',
+                        changeCommand=self.change_min_slope)
+        self.addControl('maxSlope', 'Max Slope',
+                        changeCommand=self.change_max_slope)
         self.addSeparator()
         self.addControl('slopeFuzz', 'Slope Fuzziness')
         self.endLayout()
         self.endLayout()
-        #  self.beginLayout('Geo Cache', collapse=1)
-        #  self.addControl('geoCached', label='Geometry Cached')
-        #  self.endLayout()
-        #  self.addControl('emitDummy', label='emitDummy')
         self.callCustom(self.add_emit_btn, self.update_emit_btn, "emit" )
         self.endLayout()
 
-
+        # count layout
         self.beginLayout('Count', collapse=True)
         self.addControl('numSpores', label='Count')
-        self.dimControl(self._node, 'Count', True)
+        #  self.dimControl(self._node, 'Count', True)
+        self.callCustom(self.add_clear_btn, self.update_clear_btn, 'clear' )
         self.endLayout()
-        # I/O
-        #  self.beginLayout('I/O', collapse=1)
-        #  self.beginLayout('input', collapse=1)
-        #  self.endLayout()
-        #  self.beginLayout('output', collapse=1)
-        #  self.endLayout()
-        #  self.endLayout()
 
-        # display properties
-        #  self.beginLayout('Display', collapse=1)
-        #  self.addControl('numSpores', label='Number of Points')
-        #  self.addControl('pointVisibility', label='Display Spores')
-        #  self.addControl('normalVisibility', label='Display Normals')
-        #  self.addControl('displaySize', label='Spore Radius')
+        # geo cache layout
+        self.beginLayout('Geo Cache', collapse=True)
+        self.addControl('geoCached', label='Geo Cached')
+        self.endLayout()
+
         self.endLayout()
 
     # ------------------------------------------------------------------------ #
@@ -201,44 +208,57 @@ class AEsporeNodeTemplate(AETemplate):
     # ------------------------------------------------------------------------ #
 
     def add_instance_list(self, *args):
+        """ builde the instance list layout """
 
         instanced_geo = node_utils.get_instanced_geo(self._node)
         if instanced_geo:
             instanced_geo = ['[{}]: {}'.format(i, name) for i, name in enumerate(instanced_geo)]
         else:
             return
-            #  instanced_geo = ['No source objects selected']
 
 
         form = cmds.formLayout()
         help_lbl = cmds.text(l='Select item(s) to specify an index', align='left')
-        scroll_list = cmds.textScrollList('instanceList', ams=True, append=instanced_geo)
-        add_btn = cmds.symbolButton('addInstanceBtn', width=30, i='UVTBAdd.png', c=pm.Callback(self.add_instance))
-        rm_btn = cmds.symbolButton('removeInstanceBtn', width=30, i='UVTBRemove.png', c=pm.Callback(self.remove_instance))
-        cmds.formLayout(form, e=True, attachForm=[(help_lbl, 'left', 2),
-                                                  (help_lbl, 'right', 2),
-                                                  (help_lbl, 'top', 0),
-                                                  (add_btn, 'right', 2),
-                                                  (add_btn, 'top', 17),
-                                                  (rm_btn, 'top', 45),
-                                                  (rm_btn, 'right', 2),
-                                                  (scroll_list, 'right', 35),
-                                                  (scroll_list, 'top', 17),
-                                                  (scroll_list, 'left', 2),
-                                                  (scroll_list, 'bottom', 2)],
-                        height=115)
+        scroll_list = cmds.textScrollList('instanceList', ams=True,
+                                          append=instanced_geo)
+        add_btn = cmds.symbolButton('addInstanceBtn', width=30, i='UVTBAdd.png',
+                                    c=pm.Callback(self.add_instance),
+                                    ann='Add Selected Object')
+        rm_btn = cmds.symbolButton('removeInstanceBtn', width=30,
+                                   i='UVTBRemove.png',
+                                   c=pm.Callback(self.remove_instance),
+                                   ann='Remove Selected Objects')
+        instancer_btn = cmds.symbolButton('instancerBtn', width=30, i='info.png',
+                                          c=pm.Callback(self.select_instancer),
+                                          ann='Highlight Instancer')
+
+        cmds.formLayout(form, e=True, height=115,
+                        attachForm=[(help_lbl, 'left', 2),
+                                    (help_lbl, 'right', 2),
+                                    (help_lbl, 'top', 0),
+                                    (add_btn, 'right', 2),
+                                    (add_btn, 'top', 17),
+                                    (rm_btn, 'top', 45),
+                                    (rm_btn, 'right', 2),
+                                    (instancer_btn, 'right', 2),
+                                    (instancer_btn, 'bottom', 2),
+                                    (scroll_list, 'right', 35),
+                                    (scroll_list, 'top', 17),
+                                    (scroll_list, 'left', 2),
+                                    (scroll_list, 'bottom', 2)])
 
     def update_instance_list(self, *args):
+        """ update the instance list base on the last  spore node
+        in the selection
+        note: i'm not entirly sure if it's solid to query selection for this,
+        but otherwise self._node gives the last selected spore node - bug?!"""
 
         selection = cmds.ls(sl=True)[-1]
         if cmds.objectType(selection) == 'sporeNode':
             self._node = selection
-        #  print 'update:' , args, self._node, self.nodeName
+
         instanced_geo = node_utils.get_instanced_geo(self._node)
-        #  if instanced_geo:
         instanced_geo = ['[{}]: {}'.format(i, name) for i, name in enumerate(instanced_geo)]
-        #  else:
-        #      instanced_geo = ['No source geometry selected']
 
         cmds.textScrollList('instanceList', e=1, removeAll=True)
         cmds.textScrollList('instanceList', e=1, append=instanced_geo)
@@ -266,18 +286,20 @@ class AEsporeNodeTemplate(AETemplate):
 
         if selection:
             for item in selection:
-                print 'remove:', item
                 obj_name = item.split(' ')[-1]
                 connections = cmds.listConnections(obj_name, instancer, p=True, d=True, s=False)
-                print connections, obj_name
                 connection = [c for c in connections if c.split('.')[0] == instancer]
-                print connections
                 for connection in connections:
-                    print connection, instancer
                     if connection.split('.')[0] == instancer.split('|')[-1]:
                         cmds.disconnectAttr('{}.matrix'.format(obj_name), connection)
 
         self.update_instance_list()
+
+    def select_instancer(self):
+        #  self._node = cmds.ls(sl=True, type='sporeNode')[-1]
+
+        instancer = node_utils.get_instancer(self._node)
+        cmds.select((instancer, self._node))
 
     # ------------------------------------------------------------------------ #
     # emit button
@@ -296,7 +318,7 @@ class AEsporeNodeTemplate(AETemplate):
         cmds.button('emitButton', e=True, c=self.emit)
 
     def emit(self, *args):
-        """ run the actual sample command """
+        """ run the actual sample command and check if transforms are frozen """
 
         in_mesh = node_utils.get_connected_in_mesh(self._node)
         transform = cmds.listRelatives(in_mesh, p=True, f=True)[0]
@@ -309,7 +331,7 @@ class AEsporeNodeTemplate(AETemplate):
         or cmds.getAttr(transform + '.scaleX') != 1\
         or cmds.getAttr(transform + '.scaleY') != 1\
         or cmds.getAttr(transform + '.scaleZ') != 1:
-            msg = 'Feeze inMesh\'s transformations in order to sample the geomety!'
+            msg = 'Feeze transformations to sample the geomety!'
             result = message_utils.IOHandler().confirm_dialog(msg, 'Freeze Transformations')
             if result:
                 cmds.makeIdentity(transform, a=True, s=True, r=True, t=True, n=0)
@@ -318,6 +340,19 @@ class AEsporeNodeTemplate(AETemplate):
 
         cmds.setAttr('{}.emit'.format(self._node), 1)
         cmds.sporeSampleCmd()
+
+    # ------------------------------------------------------------------------ #
+    # clear button
+    # ------------------------------------------------------------------------ #
+
+    def add_clear_btn(self, attr):
+        cmds.button('clearButton', l='Clear All', c=self.clear)
+
+    def update_clear_btn(self, attr):
+        pass
+
+    def clear(self, *args):
+        cmds.setAttr(self._node + '.clear', True)
 
     # ------------------------------------------------------------------------ #
     # context mode buttons
@@ -351,7 +386,6 @@ class AEsporeNodeTemplate(AETemplate):
         self._node = attr.split('.')[0]
         if cmds.currentCtx().startswith('spore'):
             ctx_mode = cmds.getAttr(attr)
-            print ctx_mode
             if ctx_mode == 0:
                 cmds.button('placeBtn', e=True, bgc=(0.148, 0.148, 0.148))
             elif ctx_mode == 1:
@@ -524,9 +558,7 @@ class AEsporeNodeTemplate(AETemplate):
         :param node: the current node name """
 
         self._node = node
-        print 'toggle', node
         uniform_scale = not cmds.getAttr('{}.uniformScale'.format(node))
-        print 'foo', cmds.getAttr('{}.minScaleX'.format(node))
 
         #  self.dimControl(node, 'minScaleX', uniform_scale)
         #  self.dimControl(node, 'maxScaleX', uniform_scale)
