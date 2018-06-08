@@ -145,7 +145,6 @@ def clear_tracking_dir(*args):
     """ clean up the global spore tracking dir when a new file is created
     or opened """
 
-    print args
     sys._global_spore_tracking_dir = {}
 
 
