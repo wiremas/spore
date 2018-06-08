@@ -53,7 +53,6 @@ class SporeNode(ompx.MPxNode):
     a_emit_type = om.MObject()
     a_emit = om.MObject()
     a_emit_from_texture = om.MObject()
-    a_evaluate_shader = om.MObject()
     a_num_samples = om.MObject()
     a_min_radius = om.MObject()
     a_min_radius_2d = om.MObject()
@@ -129,6 +128,7 @@ class SporeNode(ompx.MPxNode):
         typed_attr_fn.setReadable(False)
         typed_attr_fn.setStorable(False)
         typed_attr_fn.setKeyable(False)
+        typed_attr_fn.setHidden(True)
         cls.addAttribute(cls.in_mesh)
 
         # input attribute
@@ -271,6 +271,7 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
+        numeric_attr_fn.setHidden(True)
         cls.addAttribute(cls.a_pressure)
 
         cls.a_pressure_mapping = enum_attr_fn.create('pressureMapping', 'pressureMapping', 0)
@@ -284,6 +285,7 @@ class SporeNode(ompx.MPxNode):
         enum_attr_fn.setStorable(False)
         enum_attr_fn.setKeyable(False)
         enum_attr_fn.setConnectable(False)
+        enum_attr_fn.setHidden(True)
         cls.addAttribute(cls.a_pressure_mapping)
 
         cls.a_min_pressure = numeric_attr_fn.create('minPressure', 'minPressure', om.MFnNumericData.kDouble, 0.0)
@@ -292,6 +294,7 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
+        numeric_attr_fn.setHidden(True)
         cls.addAttribute(cls.a_min_pressure )
 
         cls.a_max_pressure = numeric_attr_fn.create('maxPressure', 'maxPressure', om.MFnNumericData.kDouble, 1.0)
@@ -300,6 +303,7 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
+        numeric_attr_fn.setHidden(True)
         cls.addAttribute(cls.a_max_pressure )
 
         # node attributes - emit attributes
@@ -325,13 +329,6 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setReadable(False)
         numeric_attr_fn.setKeyable(False)
         cls.addAttribute(cls.a_emit_from_texture)
-
-        cls.a_evaluate_shader = numeric_attr_fn.create('evalShader', 'evalShader', om.MFnNumericData.kBoolean, 0)
-        numeric_attr_fn.setStorable(True)
-        numeric_attr_fn.setKeyable(False)
-        numeric_attr_fn.setReadable(False)
-        numeric_attr_fn.setKeyable(False)
-        cls.addAttribute(cls.a_evaluate_shader)
 
         cls.a_emit_texture  = numeric_attr_fn.createColor('emitTexture', 'emitTexture')
         numeric_attr_fn.setStorable(True)
@@ -437,6 +434,7 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setStorable(False)
         numeric_attr_fn.setKeyable(False)
         numeric_attr_fn.setConnectable(False)
+        numeric_attr_fn.setHidden(True)
         cls.addAttribute(cls.a_points_cached)
 
         cls.a_brush_radius = numeric_attr_fn.create('brushRadius', 'brushRadius', om.MFnNumericData.kDouble, 1)
@@ -585,14 +583,24 @@ class SporeNode(ompx.MPxNode):
 
                 # check if there is another spore node that already has a cache
                 # object for the current inmesh
-                # note: this does not ensureis the cache is up to date!
+                # note: this does not ensure that the cache is up to date!
                 found = False
                 for key, node in sys._global_spore_tracking_dir.iteritems():
                     other_in_mesh = node_utils.get_connected_in_mesh(node.thisMObject())
                     in_mesh = node_utils.get_connected_in_mesh(self.thisMObject())
                     if in_mesh == other_in_mesh and node != self:
                         self.geo_cache = node.geo_cache
-                        found = True
+
+                        # check if the cache is still valid
+                        if self.geo_cache.validate_cache():
+                            found = True
+
+                        else:
+                            in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
+                            self.geo_cache.flush_cache()
+                            self.geo_cache.cache_geometry(in_mesh)
+
+                        # if the cache is invalid break, since we need to recache
                         break
 
                 # if no cache was found start creating a new one
@@ -601,8 +609,27 @@ class SporeNode(ompx.MPxNode):
                     self.geo_cache.cache_geometry(in_mesh)
 
                 # set cached to true
-                is_geo_cached_handle = data.outputValue(self.a_geo_cached)
-                is_geo_cached_handle.setBool(True)
+                node_fn = om.MFnDependencyNode(self.thisMObject())
+                cached_plug = node_fn.findPlug('geoCached')
+                cached_plug.setBool(True)
+
+            is_delete = data.inputValue(self.a_clear).asBool()
+            if is_delete:
+                pass
+
+                #  is_delete_handle = data.outputValue(self.a_clear)
+                #  print is_delete_handle
+                #  is_delete_handle.setBool(False)
+                #  is_delete_handle.setMObject(is_delete_handle.data())
+                #  data.setClean(self.a_clear)
+                self._state.clear()
+
+                node_fn = om.MFnDependencyNode(self.thisMObject())
+                clear_plug = node_fn.findPlug('clear')
+                clear_plug.setBool(False)
+
+
+            data.setClean(self.a_instance_data)
 
         #  if plug == self.a_emit_dummy:
         #      emit_type = data.inputValue(self.a_emit_type).asShort()
