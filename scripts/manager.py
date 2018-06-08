@@ -10,8 +10,6 @@ import maya.OpenMaya as om
 from PySide2.QtCore import Slot, QObject, Qt
 from PySide2.QtWidgets import QAction
 
-#  print __name__, __file__
-
 import manager_ui
 import node_utils
 reload(manager_ui)
@@ -41,15 +39,27 @@ class SporeManager(object):
         self.ui.close_event.connect(self.close_event)
 
     def add_callbacks(self):
+        """ add callbacks """
+
         self.callbacks.append(om.MEventMessage.addEventCallback('SelectionChanged', self.selection_changed))
+        self.callbacks.append(om.MEventMessage.addEventCallback('NameChanged', self.refresh_spore))
+        self.callbacks.append(om.MSceneMessage.addCallback(om.MSceneMessage.kAfterNew, self.refresh_spore))
+        self.callbacks.append(om.MSceneMessage.addCallback(om.MSceneMessage.kAfterOpen, self.refresh_spore))
 
     def remove_callbacks(self):
+        """ remove callbacks """
+
         for i in xrange(self.callbacks.length()):
-            om.MMessage.removeCallback(self.callbacks[i])
+            try:
+                om.MMessage.removeCallback(self.callbacks[i])
+            except RuntimeError:
+                pass
 
     def selection_changed(self, *args):
+        """ link selection im maya to highligthing widgets in the manager """
+
+        #  print "SEL CHANGED"
         selection = cmds.ls(sl=True, typ='sporeNode')
-        print selection
         for geo_item, spore_items in self.wdg_tree.iteritems():
             for spore_item in spore_items:
                 if spore_item.node_name in selection:
@@ -57,33 +67,17 @@ class SporeManager(object):
                 else:
                     spore_item.deselect()
 
-    @Slot(str)
-    def add_spore(self, name):
-        """ add a new spore setup to the scene """
-
-        spore_node, instancer = cmds.spore()
-        #  spore_transform = cmds.listRelatives(spore_node, p=True, f=True)[0]
-        cmds.rename(spore_node, '{}Spore'.format(name))
-        cmds.rename(instancer, '{}SporeInstancer'.format(name))
-
-        self.ui.clear_layout()
-        self.initialize_ui()
-        self.refresh_spore()
-
-    def remove_spore(self):
-        """ remove selected spore setup(s) from the scene """
-
-        pass
-
-    def refresh_spore(self):
+    def refresh_spore(self, *args):
         """ refresh spore ui """
 
         self.wdg_tree = collections.defaultdict(list)
         self.ui.clear_layout()
         self.initialize_ui()
 
-
     def initialize_ui(self):
+        """ build the actual hierarchical layout for the spore view.
+        add a GeoItem widget for each entry in the targets list and
+        a SporeItem widget for each sporeNode connected to the mesh """
 
         targets = self.get_spore_setups()
         for target, spore_nodes in targets.iteritems():
@@ -102,7 +96,7 @@ class SporeManager(object):
                 spore_wdg.context_requested.connect(self.context_request)
                 spore_wdg.view_toggled.connect(self.toggle_view)
                 spore_wdg.name_changed.connect(self.name_changed)
-                #  spore_wdg.view_solo
+                spore_wdg.view_solo.connect(self.solo_view)
                 #  spore_wdg.view_instancer.connect(self.toggle_view)
                 #  spore_wdg.view_bounding_box.connect(self.toggle_view)
                 #  spore_wdg.view_bounding_boxes.connect(self.toggle_view)
@@ -134,6 +128,31 @@ class SporeManager(object):
                     if in_mesh.isValid():
                         return in_mesh.fullPathName()
 
+    def remove_spore(self):
+        """ remove selected spore setup(s) from the scene """
+
+        pass
+
+
+
+    """ -------------------------------------------------- """
+    """ slots """
+    """ -------------------------------------------------- """
+
+    @Slot(str)
+    def add_spore(self, name):
+        """ add a new spore setup to the scene """
+
+        spore_node, instancer = cmds.spore()
+        #  spore_transform = cmds.listRelatives(spore_node, p=True, f=True)[0]
+        spore_node = cmds.rename(spore_node, '{}Spore'.format(name))
+        instancer = cmds.rename(instancer, '{}SporeInstancer'.format(name))
+        cmds.select(spore_node)
+
+        self.ui.clear_layout()
+        #  self.initialize_ui()
+        self.refresh_spore()
+
     @Slot(QObject)
     def item_clicked(self, widget, event):
 
@@ -146,13 +165,13 @@ class SporeManager(object):
                 cmds.select(clear=True)
 
             for geo_item, spore_items in self.wdg_tree.iteritems():
-                #  print geo_item, spore_items
                 for spore_item in spore_items:
                     if is_modified \
                     and spore_item.is_selected:
                         cmds.select(spore_item.long_name, add=True)
                     else:
                         spore_item.deselect()
+                        cmds.select(spore_item.long_name, deselect=True)
 
             widget.set_select(item_state)
             if not is_modified:
@@ -173,6 +192,21 @@ class SporeManager(object):
             if instancer:
                 cmds.setAttr('{}.levelOfDetail'.format(instancer), mode)
 
+    @Slot(QObject, bool)
+    def solo_view(self, widget, solo):
+        instancer = node_utils.get_instancer(widget.name)
+        cmds.showHidden(instancer)
+
+        for geo_wdg, spore_wdgs in self.wdg_tree.iteritems():
+            for spore_wdg in spore_wdgs:
+                if spore_wdg is not widget:
+                    spore_wdg.view_buttons.solo_btn.setChecked(False)
+                    instancer = node_utils.get_instancer(spore_wdg.name)
+                    if solo:
+                        cmds.hide(instancer)
+                    else:
+                        cmds.showHidden(instancer)
+
     @Slot(QObject, str)
     def name_changed(self, widget, name):
         """ triggered by one of the spore widgets when the user
@@ -183,11 +217,11 @@ class SporeManager(object):
         node_name = widget.long_name
         if cmds.objExists(node_name):
             if re.match('^[A-Za-z0-9_-]*$', name) and not name[0].isdigit():
-                transform = cmds.listRelatives(node_name, p=True, f=True)[0]
+                #  transform = cmds.listRelatives(node_name, p=True, f=True)[0]
                 instancer = node_utils.get_instancer(node_name)
                 cmds.rename(instancer, '{}Instancer'.format(name))
                 cmds.rename(node_name, '{}Shape'.format(name))
-                cmds.rename(transform, name)
+                #  cmds.rename(transform, name)
 
             else:
                 self.io.set_message('Invalid Name: Use only A-Z, a-z, 0-9, -, _', 2)
@@ -198,8 +232,22 @@ class SporeManager(object):
 
 
     @Slot(QAction)
-    def context_request(self, action):
-        print 'context request', action
+    def context_request(self, widget, action):
+
+        if action.text() == 'Delete':
+            selection = cmds.ls(sl=1, typ='sporeNode')
+            for geo_wdg, spore_wdgs in self.wdg_tree.iteritems():
+                for spore_wdg in spore_wdgs:
+
+                    spore_node = spore_wdg.name
+                    if spore_wdg.is_selected and cmds.objExists(spore_node):
+                        instancer = node_utils.get_instancer(spore_node)
+                        cmds.delete((spore_node, instancer))
+
+                        selection.remove(spore_node)
+                        cmds.select(selection)
+
+            self.refresh_spore()
 
     def show(self):
         self.add_callbacks()
@@ -214,7 +262,6 @@ class SporeManager(object):
 if __name__ == 'manager':
 
     #  spore_root = os.path.dirname(__file__)
-    print __file__
     #  os.environ['SPORE_ROOT_DIR'] = spore_root
 
     #  if not spore_root in sys.path:
@@ -224,7 +271,7 @@ if __name__ == 'manager':
     #  if not cmds.pluginInfo('spore_plugin', q=True, l=True):
     #      cmds.loadPlugin(os.path.join(spore_root, 'plugins', 'spore_plugin.py'))
     #
-    global manager
+    #  global manager
     if not manager:
         manager = SporeManager()
 
