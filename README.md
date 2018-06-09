@@ -1,24 +1,28 @@
 # Spore
 
-Paintable particle node for Maya
+> Paintable particle node for Maya
 
-Spore is a set of Maya plug-ins and scripts.
+Spore is a set of Maya plug-ins and scripts for Autodesk Maya.
 The Spore toolset is based on the **sporeNode** and **sporeContext**.
 
-The **sporeNode** is a custom locator node that produces an *instanceData*
+The **sporeNode** is a custom dependency graph node that produces an *instanceData*
 attribute which is designed to be hooked to Maya's particle instancer node.
 
 The **sporeContext** is designed to place and manipulate points in the *instanceData* attribute.
 
+
+
 # Motivation
 
-While particle instancing in Maya is an popular way to populate environments,
-the means of manipulating per particle attributes with particles are limited
+While particle instancing in Maya is a popular way to populate environments,
+the means of manipulating per-particle attributes with particles are limited
 and require some specific knowledge.
 
-Spore tries to create a more intuitive interface to manipulating points that drive
-Maya's particles instancer.
-
+Spore tries to create a more intuitive interface to creating and manipulating points that drive
+Maya's particles instancer. Spore allows to scatter, paint and modify points in an easy an intuitive way.
+Points can eigther be place with on of four different sampling algorithms or with an interactive brush context.
+Once points have been placed in the scene they can be interactively and effortless modified using one
+of four different "grooming" brushes.
 
 # Installation
 
@@ -30,122 +34,227 @@ git clone https://github.com/wiremas/spore
 ```
 spore any /path/to/spore/spore
 ```
-3. make sure the spore.mod file is in your MAYA_MODULE_PATH
+3. make sure the spore.mod file is in your MAYA_MODULE_PATH environment variable
 
 # Dependencies
-In order to run **spore** you need scipy and numpy
+In order to run **spore** you need scipy and numpy.
+You can run the following command in the terminal if you've python (and pip comes with 2.7.9) installed.
+
+Windows
+```
+python -m pip install --user numpy scipy
+```
+MacOS
+```
+pip install numpy scipy
+```
+
 
 # SporeNode
 
-The **sporeNode** produces an **instanceData** attribute that is designed to be hooked
-to an instancer node.
+The **sporeNode** takes an **inMesh** attribute and creates an **instanceData** output attribute.
+The **instanceData** attribute is designed to drive a particle instancer. To specify a target mesh connect the target's shape
+**outMesh** attribute to the spore's **inMesh** attribute.
 
-In order for the node to work it needs a poly mesh connected to the inMesh attribute.
+![alt text](https://github.com/wiremas/spore/master/res/node_network.png "spore node network")
 
-### Options Menu
+---
 
-The options menu allows set transformations for instanced objects
+### Instanced Objects
 
-### Brush Menu
+The *Instanced Objects* menu give quick acces to adding or removing objects to the
+instancer without the need to specifically select the instancer node.
+The list mirrors the list of source objects displayed in the instancer node.
 
-See [sporeContext](#sporeContext)
+In addition the list also acts as modifier for most of the brush and sample operations.
+Selecting one or more objects from the list will enable *Exclusive Mode*.
+In *Exclusive Mode* only the selected objects IDs are considered for the specified operation.
 
-### Emit Menu
+---
 
-#### Sampler
+### Instance Transforms
 
-The *sporeNode* features three different sampling types:
+The *Instance Transforms* menu allows set transformations for instanced objects
+
+| Attribute					|														|
+| ------------------------- |:-----------------------------------------------------:|
+| Align To					| Define a target vector for roation					|
+| Weight					| Set weight of the target vector						|
+| Min Rotation				| Minimum rotation values								|
+| Max Rotation				| Maximum Rotation values								|
+| Uniform Scale				| Scale XYZ uniformly (X defines the uniform value)		|
+| Min Scale					| Minimum scale values									|
+| Max Scale					| Maximum scale values									|
+| Scale Factor				| Factor for increasing/decreasing scale values			|
+| Randomize / Smooth		| Factor for randomizing/smoothing scale values 		|
+| Min Offset				| Minimum offset along surface normal					|
+| Max Offset				| Maximum offset along surface normal					|
+
+---
+
+### Brush
+
+The *Brush* menu exposes basic brush settings.
+For more detail on the individual brushes see [sporeContext](#sporeContext) section.
+
+| Attribute					|														|
+| ------------------------- |:----------------------------------------------------- |
+| Tool						| Set the brush context to the specified mode			|
+| Radius					| Define the brush radius								|
+| Number Of Samples			| Number of points created by a single brush tick 		|
+| Min Distance 				| Minimum distance between each brush tick				|
+| Falloff					| Define a falloff for the brush						| 
+
+---
+
+### Emit
+
+The *Emit* menu controls setting used for the next sampling operation.
+
+| Attribute					|														|
+| ------------------------- |:----------------------------------------------------- |
+| Type						| Set the sampling type									|
+| Number of Samples			| Number of samples generated by the random sampler		|
+| Cell Size					| Cell size for the jitter gird							|
+| Min Radius				| Minimum radius for the 3d disk sampler				|
+| Min Radius 2d				| Minimum radius for the 2d disk sampler				|
+
+The *sporeNode* features four different sampling types:
 1. **random sampling**<br/>
-   Distribute points uniform randomly across the surface<br/>
+   Distribute points uniform randomly across the surface.
+   Fast, but sampled points tend to clump together or form empty spots<br/>
    <br/>   
 2. **jitter grid**<br/>
-   a. Create an initial point cloud and partition the spatial domain.<br/>
-   b. Assign each point to the cell it spatially belongs to.<br/>
-   c. Choose a random point from each cell.<br/>
+   A uniform grid is created around an initial point cloud, generated by the random sampler.
+   Than from each cell a random point is choose. This results in higher sampling times since
+   some of the sampled points are discarded but the result look slightly more pleasing.<br/>
    <br/>
 3. **3d poisson disk sampling**<br/>
-   Generate poisson disk samples that are at least r apart from each other.<br/>
-   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.591.736&rep=rep1&type=pdf<br/>
+   Generated poisson disk samples are at least the distance r apart from each other.<br/>
+   This results in very pleasing result but take a lot longer to sample.
    Note: be carefure with the minRadius attribute since small values increase computation<br/>
+   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.591.736&rep=rep1&type=pdf<br/>
    <br/>
 4. **2d poisson disk sampling**<br/>
-   Generate poisson disk samples in uv space that are at least r apart from each other.<br/>
+   Generate poisson disk samples in uv space that are at least the distance r apart from each other.<br/>
    Note: be carefure with the minRadius attribute since small values increase computation<br/>
    Note: samples will only be generated in the uv space from 0 to 1.
    Therefore the radius can not exceed 1.<br/>
    http://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf<br/>
    <br/>
 
-For now the sampler is implemented in Python which is not really ideal in terms
-of speed. To accelerate sampling, meshes that are connected to a sporeNode will cached
-as triangle meshs in memory. These cache objects are shared between nodes which means
-that you have to cache each mesh only once even if you create multiple sporeNode instances
-for a single mesh.<br/>
-Note: When the mesh deformes or moves the cache is not updated automatically. To force a
-cache update uncheck the sporeNode's "isCached" attribute in the node's Extra Attributes layout.<br/>
-Note: Depending on your mesh size, caching might take a few seconds.
+*Geometry Cache*<br/>
+<br/>
+To accelerate sampling and other operations, target meshes will be cached in memory.
+These cache objects are shared between nodes. Meaning that even if you create multiple spore nodes for the same mesh, the cache has to be created only once.
+Depending on the size of the mesh, caching might take a few seconds.
+To prevent a lot of computational overhead the cache will not update automatically when the mesh is transformed or deformed.
+In general, every time the cache is requested, it will evaluate if there have been any changes to the mesh.
+If this is the case it will automatically recache the mesh.
+Just note, that whenever you modify you mesh you a some extra computation to you operations.
+
+There is also the option force a recache in the **Cache** menu.
 
 #### Filtering
 
-A set of points, generated by the sampler can be filtered:
+Sampled points can be filtered using one of the following operations:
+
 1. **Texture Filter**<br/>
-   The texture filter removes points on the red channel of the incoming testure.
-   Note: Texture filtering is based on retrieving the uv coordinates for corresponding
-   points. Retrieving these uv values can take a long time when operating on high poly
-   meshes. When texture filtering is turned of sampling UVs is turned off.<br/>
-   <br/>
+   The texture filter removes points based on an the incoming shading network's red channel.<br/>
+   *Note*: Texture filtering is based on sampling uv coordinates for corresponding
+   points. Sampling uv values take a long time on high poly meshes!<br/>
+  
+   | Attribute					|														|
+   | -------------------------- |:----------------------------------------------------- |
+   | Use Texture				| Enable texture filtering								|
+   | Texutre					| Connect a shading network to evaluate					|
+
 2. **Altitude Filter**<br/>
    Filters points based on hight relative to the targets bounding box.<br/>
-   <br/>
+   Use the fuzziness attribute to create a soft transition<br/>
+   
+   | Attribute					|														|
+   | -------------------------- |:----------------------------------------------------- |
+   | Min Altitude				| Set lower filter bound								|
+   | Max Altitude				| Set upper filter bound								|
+   | Min Altitude Fuzziness		| Set lower bound fuzziness								|
+   | Max Altitude Fuzziness		| Set upper bound fuzziness								|
+
 3. **Slope Filter**<br/>
-   Filters points based on surface slope<br/>
-   <br/>
+   Filters points based on the angle between the surfaced normal and the world up vector<br/>
+   Use the fuzziness attribute to create a soft transition<br/>
 
-### Instance Objects Menu
-
-Quick acces to adding/removing objects to the instancer
-The list mirrors the list of source objects usually displayed in the instancer node.
-The *sporeNode* allows to directly add and remove instances.
-
-Selecting objects from the list while painting enable *Exclusive Mode*.
-In *Exclusive Mode* only the selected objects IDs are considered for painting.
+   | Attribute					|														|
+   | -------------------------- |:----------------------------------------------------- |
+   | Min Slope					| Minimal angle											|
+   | Max Slope					| Maximal angle											|
+   | Slope Fuzziness			| Set fuzziness											|
 
 # sporeContext
 
 The *sporeContext* is an interactive brush tool that can manipulate the sporeNode's 
-"instanceData" attributes. The context features six differen modes + modifiers.
+"instanceData" attributes. The context features six differen modes plus modifiers.
 Depending on the active context mode different brush controls are available directly
 on the sporeNode.
+
+| Modifier					|														|
+| ------------------------- |:----------------------------------------------------- |
+| b-click + drag  			| Modify brush radius									|
 
 ### Place Mode
 
 Place a singe instance per brush tick<br/>
-Shift: activate drag mode<br/>
-Meta: align to stroke direction<br/>
+
+| Modifier					|														|
+| ------------------------- |:----------------------------------------------------- |
+| Shift						| Drag Mode												|
+| Meta						| Align to stroke direction								|
 
 ### Spray Mode
 
 Place n instances per brush tick within the given radius<br/>
-Shift: activate drag mode<br/>
-Meta: align to stroke direction<br/>
+
+| Modifier					|														|
+| ------------------------- |:----------------------------------------------------- |
+| Shift						| Drag Mode												|
+| Meta						| Align to stroke direction								|
 
 ### Scale Mode
 
 Scale all instance within the given radius<br/>
-Shift: smooth scale<br/>
-Meta: randomize scale<br/>
+
+| Modifier					|														|
+| ------------------------- |:----------------------------------------------------- |
+| Shift						| Smooth												|
+| Meta						| Randomize												|
+
 
 ### Align Mode
 
 Align all instances within the given radius to the specified axis
 
+| Modifier					|														|
+| ------------------------- |:----------------------------------------------------- |
+| Shift						| Smooth (same as align to normal)						|
+| Meta						| Randomize												|
+
 ### Id Mode
 
 Set the objectIndex of all instance within the radius to the specified ID
 
+| Modifier					|														|
+| ------------------------- |:----------------------------------------------------- |
+| Shift						| ---													|
+| Meta						| Assign random											|
+
 ### Delete Mode
 
 Remove all instances within the given radius
+
+| Modifier					|														|
+| ------------------------- |:----------------------------------------------------- |
+| Shift						| ---													|
+| Meta						| Delete random											|
 
 ### Exclusive Mode
 In **Exclusive Mode** the context works only on certain objectIndex IDs.
@@ -154,7 +263,24 @@ sporeNode's instance object list.
 
 
 # sporeManager
-The **sporeManager** is a handy little gui to interface to all available *sporeNodes* 
-in the scene. This allows artists to rapidly switch between different setups.
+The **sporeManager** is a interface which lists all spore nodes in the scene.<br/>
+It helps to quickly switch between different setups and display modes or create new spore nodes<br/>
+
+| Navigation				|														|
+| ------------------------- |:----------------------------------------------------- |
+| Control-click				| Multi select											|
+| Right-click				| Context menu											|
+| Double-click				| Rename												|
 
 
+| Display modes				|														|
+| ------------------------- |:----------------------------------------------------- |
+| object					| Set instancer LoD to object							|
+| bounding box				| Set instancer LoD to bounding box						|
+| bounding boxes			| Set instancer LoD to bounding boxes					|
+| solo						| Solo the instancer connected to the specified spore node |
+### Display modes
+- object
+- bounding box
+- bounding boxes
+- solo
