@@ -37,10 +37,25 @@ spore any /path/to/spore/spore
 3. make sure the spore.mod file is in your MAYA_MODULE_PATH environment variable
 
 # Dependencies
+
 In order to run **spore** you need **scipy** and **numpy** installed.
 
 
-# SporeNode
+# Design choices
+
+Since spore is written completely in Python some parts of it, especially the sampler
+aren't as fast as they could be written in C++. Fortunatel, for the most part, spore doesn't
+require to do a lot of heavy computation due to its design <br/>
+Actually the only thing the node does is to hold the *instanceData* attribute, which is only
+a bunch of arrays. Most of the actual computation is done in the sporeContext.
+The spore context directly operates on the *instanceData* attribute to create and modify
+points (values in the instanceData arrays).
+This happens most of the time only on a subset of all points and is therefor less expensive.
+Feeding the *instanceData* attribute than into the instancer node, the responsibility for
+drawing the objects is handed over to Maya.
+
+
+# sporeNode
 
 The **sporeNode** takes an **inMesh** input attribute and creates an **instanceData** output attribute.
 The **instanceData** attribute is designed to drive a particle instancer. To specify a target mesh connect the target's shape
@@ -251,8 +266,15 @@ In **Exclusive Mode** the context works only on certain objectIndex IDs.
 To activate **Exclusive Mode** select the desired sources objects in the
 sporeNode's instance object list.
 
+# sporeCommand
+The spore command can be used to create a new spore setup from Maya's script editor.
+```
+cmds.spore()
+```
+
 
 # sporeManager
+
 The **sporeManager** is a interface which lists all spore nodes in the scene.<br/>
 It helps to quickly switch between different setups and display modes or create new spore nodes<br/>
 
