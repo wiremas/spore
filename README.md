@@ -36,23 +36,17 @@ spore any /path/to/spore/spore
 ```
 3. make sure the spore.mod file is in your MAYA_MODULE_PATH environment variable
 
+# Usage
+
+Load the spore plugin from Maya's plugin manager.
+Select your target surface than select all the object you want to scatter.
+From the spore menu select "Create Spore Setup" or "Spore" to open the spore manager.
+
+![alt text](https://github.com/wiremas/spore/blob/master/res/spore_menu.png "spore menu")
+
 # Dependencies
 
-In order to run **spore** you need **scipy** and **numpy** installed.
-
-
-# Design choices
-
-Since spore is written completely in Python some parts of it, especially the sampler
-aren't as fast as they could be written in C++. Fortunatel, for the most part, spore doesn't
-require to do a lot of heavy computation due to its design <br/>
-Actually the only thing the node does is to hold the *instanceData* attribute, which is only
-a bunch of arrays. Most of the actual computation is done in the sporeContext.
-The spore context directly operates on the *instanceData* attribute to create and modify
-points (values in the instanceData arrays).
-This happens most of the time only on a subset of all points and is therefor less expensive.
-Feeding the *instanceData* attribute than into the instancer node, the responsibility for
-drawing the objects is handed over to Maya.
+In order to run **spore** you need to have **scipy** and **numpy** installed.
 
 
 # sporeNode
@@ -245,7 +239,10 @@ Align all instances within the given radius to the specified axis
 
 ### Id Mode
 
-Set the objectIndex of all instance within the radius to the specified ID
+Modify the objectIndex points within the radius to the specified ID.
+ID can be specified by enabeling *Exclusive Mode*.
+If the meta modifier key is pressed, n number of samples are randomly set to the specified objectIndex per brush ticks.
+Brush ticks can be modified using the *Min Distance* attribute
 
 | Modifier					|														|
 | ------------------------- |:----------------------------------------------------- |
@@ -254,11 +251,15 @@ Set the objectIndex of all instance within the radius to the specified ID
 
 ### Delete Mode
 
-Remove all instances within the given radius
+Remove all instances within the given radius.
+If the meta modifier key is pressed, n number of samples are randomly deleted per brush ticks.
+Brush ticks can be modified using the *Min Distance* attribute.
+While the tool is active objects can be restored using the shift modifier key.
+Once the is left it is no longer possible to restore objects.
 
 | Modifier					|														|
 | ------------------------- |:----------------------------------------------------- |
-| Shift						| ---													|
+| Shift						| Restore (Works only until the context is left)		|
 | Meta						| Delete random											|
 
 ### Exclusive Mode
@@ -277,6 +278,8 @@ cmds.spore()
 
 The **sporeManager** is a interface which lists all spore nodes in the scene.<br/>
 It helps to quickly switch between different setups and display modes or create new spore nodes<br/>
+
+![alt text](https://github.com/wiremas/spore/blob/master/res/spore_manager.png "spore menu")
 
 | Navigation				|														|
 | ------------------------- |:----------------------------------------------------- |
