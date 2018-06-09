@@ -141,6 +141,8 @@ The *sporeNode* features four different sampling types:
    Therefore the radius can not exceed 1.<br/>
    http://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf<br/>
    <br/>
+   
+![alt text](https://github.com/wiremas/spore/blob/master/res/sampler.png "spore menu")
 
 *Geometry Cache*<br/>
 <br/>
