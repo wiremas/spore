@@ -56,7 +56,7 @@ The **sporeNode** takes an **inMesh** attribute and creates an **instanceData** 
 The **instanceData** attribute is designed to drive a particle instancer. To specify a target mesh connect the target's shape
 **outMesh** attribute to the spore's **inMesh** attribute.
 
-![alt text](https://github.com/wiremas/spore/master/res/node_network.png "spore node network")
+![alt text](https://github.com/wiremas/spore/blob/master/res/spore_network.png "spore node network")
 
 ---
 
@@ -279,8 +279,4 @@ It helps to quickly switch between different setups and display modes or create 
 | bounding box				| Set instancer LoD to bounding box						|
 | bounding boxes			| Set instancer LoD to bounding boxes					|
 | solo						| Solo the instancer connected to the specified spore node |
-### Display modes
-- object
-- bounding box
-- bounding boxes
-- solo
+
