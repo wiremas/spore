@@ -1,2 +1,2 @@
-+ spore any /Users/anno/Documents/work/spore
++ spore any /path/to/spore
 [r] scripts: scripts
