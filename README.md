@@ -37,22 +37,12 @@ spore any /path/to/spore/spore
 3. make sure the spore.mod file is in your MAYA_MODULE_PATH environment variable
 
 # Dependencies
-In order to run **spore** you need scipy and numpy.
-You can run the following command in the terminal if you've python (and pip comes with 2.7.9) installed.
-
-Windows
-```
-python -m pip install --user numpy scipy
-```
-MacOS
-```
-pip install numpy scipy
-```
+In order to run **spore** you need **scipy** and **numpy** installed.
 
 
 # SporeNode
 
-The **sporeNode** takes an **inMesh** attribute and creates an **instanceData** output attribute.
+The **sporeNode** takes an **inMesh** input attribute and creates an **instanceData** output attribute.
 The **instanceData** attribute is designed to drive a particle instancer. To specify a target mesh connect the target's shape
 **outMesh** attribute to the spore's **inMesh** attribute.
 
@@ -147,13 +137,13 @@ The *sporeNode* features four different sampling types:
 <br/>
 To accelerate sampling and other operations, target meshes will be cached in memory.
 These cache objects are shared between nodes. Meaning that even if you create multiple spore nodes for the same mesh, the cache has to be created only once.
-Depending on the size of the mesh, caching might take a few seconds.
+Depending on the size of the mesh, caching might take a few seconds.<br/>
 To prevent a lot of computational overhead the cache will not update automatically when the mesh is transformed or deformed.
 In general, every time the cache is requested, it will evaluate if there have been any changes to the mesh.
 If this is the case it will automatically recache the mesh.
-Just note, that whenever you modify you mesh you a some extra computation to you operations.
+Just note, that whenever you modify you mesh you add some extra computation to you operations.
 
-There is also the option force a recache in the **Cache** menu.
+There is also the option to force a recache in the **Cache** menu.
 
 #### Filtering
 
@@ -275,7 +265,7 @@ It helps to quickly switch between different setups and display modes or create 
 
 | Display modes				|														|
 | ------------------------- |:----------------------------------------------------- |
-| object					| Set instancer LoD to object							|
+| geometry					| Set instancer LoD to geometry							|
 | bounding box				| Set instancer LoD to bounding box						|
 | bounding boxes			| Set instancer LoD to bounding boxes					|
 | solo						| Solo the instancer connected to the specified spore node |
