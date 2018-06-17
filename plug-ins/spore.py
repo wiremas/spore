@@ -15,7 +15,7 @@ reload(spore_node)
 reload(spore_context)
 reload(spore_command)
 reload(spore_sampler)
-reload (AEsporeNodeTemplate)
+reload(AEsporeNodeTemplate)
 
 import maya.mel as mel
 mel.eval('refreshEditorTemplates;')
@@ -43,7 +43,7 @@ def initializePlugin(mobject):
     CALLBACKS.append(om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeNew,
                                                   clear_tracking_dir))
 
-    mplugin = ompx.MFnPlugin(mobject)
+    mplugin = ompx.MFnPlugin(mobject, 'Anno Schachner', '0.0.25')
 
     try: # register node prototype
         mplugin.registerNode(spore_node.SporeNode.name,
@@ -52,7 +52,7 @@ def initializePlugin(mobject):
                              spore_node.SporeNode.initialize,
                              ompx.MPxNode.kDependNode)
     except:
-        sys.stderr.write( "Failed to register node: %s" % spore_node.SporeNode.name)
+        sys.stderr.write("Failed to register node: %s" % spore_node.SporeNode.name)
         raise
 
     try: # register context & tool command
@@ -78,11 +78,6 @@ def initializePlugin(mobject):
                                 spore_sampler.syntax)
     except:
         sys.stderr.write('Failed to register spore command: {}'.format(spore_sampler.SporeSampler.name))
-    #
-    #  try:
-    #      mplugin.registerCommand(motionTraceCmd.kPluginCmdName, motionTraceCmd.cmdCreator, motionTraceCmd.syntaxCreator)
-    #  except:
-    #      sys.stderr.write("Failed to register command: %s\n" % motionTraceCmd.kPluginCmdName)
         raise
 
     # cereate spore menu
@@ -103,11 +98,6 @@ def uninitializePlugin(mobject):
 
     mplugin = ompx.MFnPlugin(mobject)
 
-    #  try:
-    #      mplugin.deregisterCommand(motionTraceCmd.kPluginCmdName)
-    #  except:
-    #      sys.stderr.write("Failed to unregister command: %s\n" % motionTraceCmd.kPluginCmdName)
-        #  raise
     try:
         mplugin.deregisterCommand(spore_sampler.SporeSampler.name)
     except:
