@@ -152,10 +152,26 @@ class SporeToolCmd(ompx.MPxToolCommand):
             self.move_action(flag)
 
         elif self.brush_state.settings['mode'] == 'id': #'index':
-            self.index_action(flag)
+            if self.brush_state.meta_mod:
+                # check min distance
+                if not self.validate_min_distance():
+                    return
+
+                self.random_index_action(flag)
+            else:
+                self.index_action(flag)
 
         elif self.brush_state.settings['mode'] == 'remove':
-            self.delete_action(flag)
+            if self.brush_state.meta_mod:
+                # check min distance
+                if not self.validate_min_distance():
+                    return
+
+                self.delete_random(flag)
+            elif self.brush_state.shift_mod:
+                self.change_visibility(flag, 1)
+            else:
+                self.change_visibility(flag, 0)
 
     def undoIt(self):
 
@@ -220,12 +236,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
             min_distance = self.brush_state.settings['min_distance']
             if b_position.distanceTo(self.last_brush_position) < min_distance:
                 return
-            #  else:
+
+        self.last_brush_position = b_position
         position = b_position
         normal = b_normal
         tangent = b_tangent
-
-        self.last_brush_position = b_position
 
         # set number of samples or default to 1 in place mode
         if self.brush_state.settings['mode'] == 'spray': # spray mode
@@ -367,6 +382,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         for i, index in enumerate(neighbour):
             rotation = self.instance_data.rotation[index]
             normal = self.instance_data.normal[index]
+            direction = self.get_random_vector(normal)
             #  direction = self.get_alignment(normal)
             #  rotation = self.rotate_into(average, rotation)
             rotation = self.randomize_rotation(rotation, self.brush_state.settings['strength'])
@@ -469,6 +485,8 @@ class SporeToolCmd(ompx.MPxToolCommand):
     """ ------------------------------------------------------- """
 
     def index_action(self, flag):
+        """ set index for neighbouring points """
+
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
         neighbour = self.instance_data.get_closest_points(position, radius)
@@ -478,8 +496,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
             return
 
         for i, neighbour_id in enumerate(neighbour):
-            #  object_index = self.instance_data.instance_id[neighbour_id]
-            #  if object_index not in self.brush_state.settings['ids']:
             object_index = random.choice(self.brush_state.settings['ids'])
 
             self.instance_id.set(object_index, i)
@@ -487,11 +503,40 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.instance_data.set_points(neighbour, instance_id=self.instance_id)
         self.instance_data.set_state()
 
+    def random_index_action(self, flag):
+        """ set the specified instance id to random objects """
+
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+        neighbour = self.instance_data.get_closest_points(position, radius)
+        num_samples = self.brush_state.settings['num_samples']
+        ids = self.brush_state.settings['ids']
+
+        changed_ids = []
+
+        if neighbour:
+            cache_len = num_samples if num_samples < len(neighbour) else len(neighbour)
+            self.set_cache_length(cache_len)
+        else:
+            return
+
+        for i in xrange(cache_len):
+
+            object_index = random.choice(ids)
+            index = random.choice(neighbour)
+            changed_ids.append(index)
+            self.instance_id.set(object_index, i)
+
+        self.instance_data.set_points(changed_ids, instance_id=self.instance_id)
+        self.instance_data.set_state()
+
+
+
     """ ------------------------------------------------------- """
     """ delete """
     """ ------------------------------------------------------- """
 
-    def delete_action(self, flag):
+    def change_visibility(self, flag, visibility=0):
         """ the delete action sets the point to invisible
         when the user leaves the context all invisible points are remove.
         this is usefull to avoid rebuilding the kd tree """
@@ -505,10 +550,37 @@ class SporeToolCmd(ompx.MPxToolCommand):
             return
 
         for i, index in enumerate(neighbour):
-            self.visibility.set(0, i)
+            self.visibility.set(visibility, i)
 
         self.instance_data.set_points(neighbour, visibility=self.visibility)
         self.instance_data.set_state()
+
+    def delete_random(self, flag): #number_of_items):
+        """ randomly delete the given number of points within the brush radius """
+
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+        neighbour = self.instance_data.get_closest_points(position, radius, self.brush_state.settings['ids'])
+        num_samples = self.brush_state.settings['num_samples']
+        changed_ids = []
+
+        if neighbour:
+            cache_len = num_samples if num_samples < len(neighbour) else len(neighbour)
+            self.set_cache_length(cache_len)
+        else:
+            return
+
+        for i in xrange(cache_len):
+
+            rand_id = random.randint(0, len(neighbour) - 1)
+            index = neighbour.pop(rand_id)
+            changed_ids.append(index)
+            self.visibility.set(0, i)
+
+        #  print len(changed_ids, visibility.length()
+        self.instance_data.set_points(changed_ids, visibility=self.visibility)
+        self.instance_data.set_state()
+
 
     """ -------------------------------------------------------------------- """
     """ utils """
@@ -528,6 +600,20 @@ class SporeToolCmd(ompx.MPxToolCommand):
                              self.brush_state.tangent[2])
 
         return position, normal, tangent
+
+    def validate_min_distance(self):
+        """ return False if the last brush trick is not at least the minimum
+        dististance away from the current brush position. otherwise return true """
+
+        position, _, _ = self.get_brush_coords()
+        # return if we under min_distance threashold
+        if self.last_brush_position:
+            min_distance = self.brush_state.settings['min_distance']
+            if position.distanceTo(self.last_brush_position) < min_distance:
+                return False
+
+        self.last_brush_position = position
+        return True
 
     def get_falloff_weight(self, point):
         """ return a weight based on the distance to the given point
@@ -564,6 +650,12 @@ class SporeToolCmd(ompx.MPxToolCommand):
             direction = normal
 
         return direction
+
+    #  def get_random_vector(self, vector, weight):
+    #
+    #      """ randomize the given vector between 0 and 90 degree by the given weight """
+    #
+    #      rando
 
     def randomize_rotation(self, rotation, random_weight):
         """ randomize the given rotation values by 10 degrees multiply
