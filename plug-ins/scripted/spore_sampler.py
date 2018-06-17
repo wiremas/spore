@@ -319,82 +319,137 @@ class SporeSampler(ompx.MPxCommand):
         while len(active) > 0:
 
             # pick a random point from the active points list
-            p_active = random.choice(active)
+            p_active_index = int(len(active) * random.random())
+            p_active = active[p_active_index]
+            # TODO - get each active point only once?
 
             # normalize the point and get it's x,y,z index in the grid
             p_normalized = self.point_data.position[p_active] - bb.min()
-            p_grid_x = int(p_normalized[0] / cell_size)
-            p_grid_y = int(p_normalized[1] / cell_size)
-            p_grid_z = int(p_normalized[2] / cell_size)
+            p_grid_x = int(p_normalized.x / cell_size)
+            p_grid_y = int(p_normalized.y / cell_size)
+            p_grid_z = int(p_normalized.z / cell_size)
 
             # assume no point will be found
             found = False
 
-            # try k times to find a new point to  test against
+            # try k times to find a new sample
             k = 30
             for i in xrange(k):
 
-                # get a random nearby cell
-                new_p_x = p_grid_x + random.randrange(-1,2,1)
-                new_p_y = p_grid_y + random.randrange(-1,2,1)
-                new_p_z = p_grid_z + random.randrange(-1,2,1)
+                # get neighboring cell
+                new_p_x, new_p_y, new_p_z = self.get_valid_neighbouring_cell(p_grid_x, p_grid_y, p_grid_z)
 
-                # get grid cell index from x,y,z position. index serves as key for id_table
+                # get liear index from x,y,z position.
                 key = new_p_x + new_p_y * self.w_count + new_p_z * self.w_count * self.h_count
 
-                # check if key is valid otherwise try again
+                # check if key is valid and if there isnt already a valid point...
                 if grid_partition.has_key(key)\
                 and not valid_points[key]:
 
                     # get a random point from the list associated with the key
-                    new_index = int((len(grid_partition[key]) - 1) * random.random())
-                    point = self.point_data.position[new_index]
+                    new_index = int(len(grid_partition[key]) * random.random())
+                    point_index = grid_partition[key][new_index]
+                    point = self.point_data.position[point_index]
 
-                else: continue
+                # ...otherwise try again
+                else:
+                    continue
 
                 valid = True
-
+                #  print 'sample at cell:', key, 'point id: ', point_index, 'at: ', new_p_x, new_p_y, new_p_z, round(point.x,3), round(point.y,3), round(point.z,3)
                 # check against all nearby cells if the sample is valid
                 for x in xrange(new_p_x - 1, new_p_x + 2):
                     for y in xrange(new_p_y - 1, new_p_y + 2):
                         for z in xrange(new_p_z - 1, new_p_z + 2):
 
+                            # ignore invalid cells
+                            if x < 0 or y < 0 or z < 0:
+                                continue
+                            elif x > self.w_count - 1 or y > self.h_count - 1 or z > self.d_count -1:
+                                continue
+
                             # get the index for the current cell
                             index = x + y * self.w_count + z * self.w_count * self.h_count
-                            # TODO if index == key > sample invalid
 
                             # check if there is already a valid point in the cell
                             if index >= 0 and index <= len(valid_points) - 1:
                                 if valid_points[index]:
                                     neighbor = self.point_data.position[valid_points[index]]
 
-                                else: continue
-                            else: continue
+                                else:
+                                    continue
+                            else:
+                                raise RuntimeError
+                                continue
 
                             # check distance to the next neighbour
                             # if it conflicts tag the point invalid and break
                             # out of the loop
-                            distance = point.distanceTo(neighbor)
-                            if distance < min_radius:
+                            distance = point.distanceTo(neighbor)# + min_radius / 10
+                            if distance < min_radius: # - (min_radius / 10) :
                                 valid = False
-
-                                if grid_partition[key] == []:
-                                    grid_partition.pop(key)
-
                                 break
-                        if not valid: break
-                    if not valid: break
+
+                        if valid is False:
+                            break
+                    if valid is False:
+                        break
 
                 if valid:
                     found = True
-                    valid_points[key] = grid_partition[key][new_index]
-                    active.append(grid_partition[key][new_index])
+                    valid_points[key] = point_index
+                    active.append(point_index)
 
             if not found:
                 # TODO remove invalid points from dict
                 active.remove(p_active)
+                #  active.pop(p_active_index)
+                #  print 'invalid point', p_active, p_active_index
 
-        return [i for i in valid_points if i]
+        return [i for i in valid_points if i is not None]
+
+    def get_valid_neighbouring_cell(self, p_grid_x, p_grid_y, p_grid_z):
+        """ return a neighbouring cell within the range of p-2 to p+2 where
+        0 < x/y/z < h/w/d - 1. This ensures that only valid cell will be returned.
+        :param p_grid_x:
+        :param p_grid_y:
+        :param p_grid_z:
+        :return: """
+
+        if self.w_count < 5:
+            new_p_x = random.randint(0, self.w_count - 1)
+        elif p_grid_x <= 2:
+            new_p_x = random.randint(0, p_grid_x + 2)
+        elif p_grid_x >= self.w_count - 2:
+            new_p_x = random.randint(p_grid_x - 2, self.w_count - 1)
+        else:
+            new_p_x = random.randint(p_grid_x - 2, p_grid_x + 2)
+
+        if self.h_count < 5:
+            new_p_y = random.randint(0, self.h_count - 1)
+        elif p_grid_y <= 2:
+            new_p_y = random.randint(0, p_grid_y + 2)
+        elif p_grid_y >= self.h_count - 2:
+            new_p_y = random.randint(p_grid_y - 2, self.h_count - 1)
+        else:
+            new_p_y = random.randint(p_grid_y - 2, p_grid_y + 2)
+
+        if self.d_count < 5:
+            new_p_z = random.randint(0, self.d_count - 1)
+        elif p_grid_z <= 2:
+            new_p_z = random.randint(0, p_grid_z + 2)
+        elif p_grid_z >= self.d_count - 2:
+            new_p_z = random.randint(p_grid_z - 2, self.d_count - 1)
+        else:
+            new_p_z = random.randint(p_grid_z - 2, p_grid_z + 2)
+
+        if new_p_x < 0 or new_p_y < 0 or new_p_z < 0:
+            raise RuntimeError
+        elif new_p_x > self.w_count - 1 or new_p_y > self.h_count - 1 or new_p_z > self.w_count - 1:
+            raise RuntimeError
+
+        return new_p_x, new_p_y, new_p_z
+
 
     """ ---------------------------------------------------------------- """
     """ disk sampling 2d """
@@ -534,6 +589,8 @@ class SporeSampler(ompx.MPxCommand):
             p_z = int(p_normalized.z / cell_size)
 
             index = p_x + p_y * self.w_count + p_z * self.w_count * self.h_count
+
+
             partition.setdefault(index, []).append(i)
 
         return partition
