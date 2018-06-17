@@ -430,13 +430,13 @@ class AEsporeNodeTemplate(AETemplate):
                        'minPressure', 'maxPressure')
         p_map = cmds.getAttr('{}.usePressureMapping'.format(self._node))
         dim_ctrl = {                #    rad    minD,  foff,   stren,  numS,   aliTo   minR,   maxR,   uniS    minS,   maxS,   sFac,   sAmou,  minO,   maxO,   pre,    map,    minP,   maxP
-                    'place':            (False, True,  False,  True,   False,  True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
-                    'spray':            (True,  True,  False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
-                    'scale':            (True,  False, True,   False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   False,  False,  True,   False,  p_map,  p_map),
-                    'align':            (True,  False, True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'move':             (True,  False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'id':               (True,  False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  True,   False,  p_map,  p_map),
-                    'remove':           (True,  False, False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False),
+                    'place':            (False, True,   False,  True,   False,  True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
+                    'spray':            (True,  True,   False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
+                    'scale':            (True,  False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   False,  False,  True,   False,  p_map,  p_map),
+                    'align':            (True,  False,  True,   True,   False,  True,   False,  False,  False,  False,  False,  False,   True,  False,  False,  True,   False,  p_map,  p_map),
+                    'move':             (True,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,   True,  False,  False,  True,   False,  p_map,  p_map),
+                    'id':               (True,  True,   False,  False,  True,   False,  False,  False,  False,  False,  False,  False,   True,  False,  False,  True,   False,  p_map,  p_map),
+                    'remove':           (True,  True,   False,  False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False),
                     }
 
         #  dim controls
