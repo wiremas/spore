@@ -330,7 +330,7 @@ class InstanceData(object):
 
         if isinstance(position, om.MPoint):
             position = (position.x, position.y, position.z)
-        neighbours = self.tree.query_ball_point(position, radius)
+        neighbours = self.tree.query_ball_point(position, radius, eps=radius/10)
 
         if exclude:
             instance_ids = np.array([])
