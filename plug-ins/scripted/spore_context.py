@@ -623,8 +623,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
         if self.brush_state.settings['fall_off']:
             pos = self.brush_state.position
             distance = om.MPoint(pos[0], pos[1], pos[2]).distanceTo(om.MPoint(point))
-            assert self.brush_state.radius > distance
-            #  partition = self.brush_state.radius * distance
             falloff_weight = 1 - (distance / self.brush_state.radius)
             return falloff_weight
         else:
