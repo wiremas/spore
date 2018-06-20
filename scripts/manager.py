@@ -15,7 +15,6 @@ import node_utils
 reload(manager_ui)
 import message_utils
 
-
 manager = None
 
 class SporeManager(object):
