@@ -98,6 +98,7 @@ class BrushState(object):
                          'max_offset': cmds.getAttr('{}.maxOffset'.format(self._node)),
                          'ids': object_index}
 
+        self.radius = cmds.getAttr('{}.brushRadius'.format(self._node))
 
 
     def get_screen_position(self, invert_y=True):
