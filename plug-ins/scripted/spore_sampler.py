@@ -1,4 +1,8 @@
-import math, sys, random
+import sys
+import time
+import math
+import random
+
 import maya.cmds as cmds
 import maya.OpenMaya as om
 import maya.OpenMayaRender as omr
@@ -9,8 +13,9 @@ import node_utils
 import mesh_utils
 import render_utils
 import brush_state
-reload(instance_data)
-reload(render_utils)
+import logging_util
+#  reload(instance_data)
+#  reload(render_utils)
 
 
 K_SAMPLET_TYPE_FLAG = '-t'
@@ -27,6 +32,7 @@ class Points(object):
     holds position, normal, polyid and uv coords """
 
     def __init__(self):
+
         self.position = om.MPointArray()
         self.normal = om.MVectorArray()
         self.poly_id = om.MIntArray()
@@ -92,7 +98,10 @@ class SporeSampler(ompx.MPxCommand):
         self.cell_size = None
         self.min_distance = None
 
+        self.logger = logging_util.SporeLogger(__name__)
+
     def doIt(self, args):
+
         self.parse_args(args)
         self.redoIt()
 
@@ -139,8 +148,8 @@ class SporeSampler(ompx.MPxCommand):
         min_slope = cmds.getAttr('{}.minSlope'.format(node_name))
         max_slope = cmds.getAttr('{}.maxSlope'.format(node_name))
         slope_fuzz = cmds.getAttr('{}.slopeFuzz'.format(node_name))
-        seed = cmds.getAttr('{}.seed'.format(node_name))
         sel = cmds.textScrollList('instanceList', q=True, si=True)
+        seed = cmds.getAttr('{}.seed'.format(node_name))
         if sel:
             object_index = [int(s.split(' ')[0].strip('[]:')) for s in sel]
         else:
@@ -151,20 +160,25 @@ class SporeSampler(ompx.MPxCommand):
             object_index = [int(e.split(' ')[0].strip('[]:')) for e in elements]
         ids = object_index
 
-
-        #  self.point_data = instance_data.InstanceData(self.target)
+        # set the random seed and initialize the Points object
+        self.set_seed(seed)
         self.point_data = Points()
 
+        t1 = time.time()
+
+
+
+        # choose sample operation
         if mode == 0: #'random':
-            self.random_sampling(num_samples, seed)
+            self.random_sampling(num_samples)
 
         elif mode == 1: #'jitter':
-            self.random_sampling(num_samples, seed)
+            self.random_sampling(num_samples)
             grid_partition = self.voxelize(cell_size)
             valid_points = self.grid_sampling(grid_partition)
 
         elif mode == 2: #'poisson3d':
-            self.random_sampling(num_samples, seed)
+            self.random_sampling(num_samples)
             cell_size = min_radius / math.sqrt(3)
             grid_partition = self.voxelize(cell_size)
             valid_points = self.disk_sampling_3d(min_radius, grid_partition, cell_size)
@@ -172,9 +186,6 @@ class SporeSampler(ompx.MPxCommand):
         elif mode == 3: #'poisson2d':
             self.geo_cache.create_uv_lookup()
             self.disk_sampling_2d(min_radius_2d)
-
-        else:
-            raise RuntimeError('Invalid sample mode. Legal keys are \'random\', \'jitter\', \'poisson2d\' or \'poisson3d\'')
 
         # get sampled points from disk or grid sampling
         if mode == 1 or mode == 2:
@@ -190,7 +201,7 @@ class SporeSampler(ompx.MPxCommand):
 
             self.point_data = point_data
 
-        # filtering
+        # texture filter
         if use_tex:
             try:
                 texture = cmds.listConnections('{}.emitTexture'.format(node_name))[0]
@@ -200,10 +211,11 @@ class SporeSampler(ompx.MPxCommand):
             self.evaluate_uvs()
             self.texture_filter(texture, 0) # TODO - Filter size
 
-
+        # altitude filter
         if min_altitude != 0 or max_altitude != 1:
             self.altitude_filter(min_altitude, max_altitude, min_altitude_fuzz, max_altitude_fuzz)
 
+        # slope filter
         if min_slope != 0 or max_slope != 180:
             self.slope_filter(min_slope, max_slope, slope_fuzz)
 
@@ -243,15 +255,30 @@ class SporeSampler(ompx.MPxCommand):
 
         instance_data.set_state()
 
+        t_result = time.time() - t1
+        self.logger.debug('Sampling {} points in mode {} took {}s.'.format(i+1, mode, t_result))
+
+    def set_seed(self, seed):
+        """ set the random seed for sampling. if the given seed is -1
+        the system time will be used
+        :param seed: the seed for the random function
+        :return: """
+        if seed == -1:
+            random.seed(None)
+        else:
+            random.seed(seed)
+
     """ ---------------------------------------------------------------- """
     """ random sampler """
     """ ---------------------------------------------------------------- """
 
-    def random_sampling(self, num_points, seed=-1):
+    def random_sampling(self, num_points):
         """ sample a given number of points on the previously cached triangle
         mesh. note: evaluating uvs on high poly meshes may take a long time """
 
-        random.seed(seed)
+        if not self.geo_cache.validate_cache():
+            self.geo_cache.cache_geometry()
+
         self.point_data.set_length(num_points)
         [self.sample_triangle(random.choice(self.geo_cache.weighted_ids), i) for i in xrange(num_points)]
 
@@ -401,19 +428,17 @@ class SporeSampler(ompx.MPxCommand):
                     active.append(point_index)
 
             if not found:
-                # TODO remove invalid points from dict
                 active.remove(p_active)
                 #  active.pop(p_active_index)
-                #  print 'invalid point', p_active, p_active_index
 
         return [i for i in valid_points if i is not None]
 
     def get_valid_neighbouring_cell(self, p_grid_x, p_grid_y, p_grid_z):
         """ return a neighbouring cell within the range of p-2 to p+2 where
         0 < x/y/z < h/w/d - 1. This ensures that only valid cell will be returned.
-        :param p_grid_x:
-        :param p_grid_y:
-        :param p_grid_z:
+        :param p_grid_x: cell x position
+        :param p_grid_y: cell y position
+        :param p_grid_z: cell z posiiton
         :return: """
 
         if self.w_count < 5:
@@ -450,7 +475,6 @@ class SporeSampler(ompx.MPxCommand):
 
         return new_p_x, new_p_y, new_p_z
 
-
     """ ---------------------------------------------------------------- """
     """ disk sampling 2d """
     """ ---------------------------------------------------------------- """
@@ -459,6 +483,8 @@ class SporeSampler(ompx.MPxCommand):
         """ sample poisson disk samples in uv space
         note: the given radius must be between 0 and 1 """
         #  def poisson(radius, k, w, h, n):
+
+        # TODO - make uv sample space editable for user
 
         grid = []
         active = []
@@ -618,7 +644,7 @@ class SporeSampler(ompx.MPxCommand):
         """ filter points based on the input texture attribute """
 
         if not node:
-            return
+            raise RuntimeError('No input shading node given')
 
         color, alpha = render_utils.sample_shading_node(node, self.point_data)
         invalid_ids = []
@@ -628,6 +654,7 @@ class SporeSampler(ompx.MPxCommand):
             if val < 0 or val > 1:
                 val = max(min(1, val), 0)
 
+            print val
             if val ** (1/gamma) > random.random():
                 invalid_ids.append(i)
 

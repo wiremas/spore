@@ -23,6 +23,7 @@ import message_utils
 import brush_state
 import event_filter
 import brush_utils
+import logging_util
 
 reload(canvas)
 reload(mesh_utils)
@@ -31,6 +32,7 @@ reload(message_utils)
 reload(brush_utils)
 reload(brush_state)
 reload(event_filter)
+reload(logging_util)
 
 
 """ -------------------------------------------------------------------- """
@@ -42,6 +44,7 @@ K_TOOL_CMD_NAME="sporeToolCmd"
 K_CONTEXT_NAME="sporeContext"
 
 K_TRACKING_DICTIONARY = {}
+
 
 
 """ -------------------------------------------------------------------- """
@@ -850,6 +853,9 @@ class SporeContext(ompx.MPxContext):
         self._setTitleString('sporeContext')
         self.setImage("moveTool.xpm", ompx.MPxContext.kImage1)
 
+        self.logger = logging_util.SporeLogger(__name__)
+        self.logger.info('Instanciate new Spore Context')
+
         self.state = brush_state.BrushState()
         self.instance_data = None
         self.msg_io = message_utils.IOHandler()
@@ -903,6 +909,7 @@ class SporeContext(ompx.MPxContext):
             self.state.node = node_name
 
             if not self.state.target or not self.state.node:
+                self.logger.error('Failed to initialize Spore Context')
                 raise RuntimeError('Failed initializing sporeTool')
 
         # fallback to old target, just pass since target is already set
@@ -912,6 +919,7 @@ class SporeContext(ompx.MPxContext):
         # if we neither have a sporeNode selected nor have a fallback, tool init fails
         else:
             self.msg_io.set_message('No sporeNode selected: Can\'t operate on: {}'.format(cmds.ls(sl=1), 1))
+            self.logger.warn('Context could not find target spore node')
             return
 
         # get node state & cache points for editing
@@ -920,9 +928,8 @@ class SporeContext(ompx.MPxContext):
         obj_handle = om.MObjectHandle(spore_obj)
         spore_locator = sys._global_spore_tracking_dir[obj_handle.hashCode()]
         self.instance_data = spore_locator._state
-        #  print self.instance_data
-        #  print spore_locator.state.apiTypeStr()
         self.state.get_brush_settings()
+
         if self.state.settings['mode'] == 'scale'\
         or self.state.settings['mode'] == 'align'\
         or self.state.settings['mode'] == 'smooth'\
@@ -944,7 +951,6 @@ class SporeContext(ompx.MPxContext):
         # set up canvas for drawing
         if self.state.settings['mode'] == 'place': #'place':
             self._setCursor(omui.MCursor.crossHairCursor)
-            #  self.canvas = canvas.DotBrush(self.state)
         else:
             self.canvas = canvas.CircularBrush(self.state)
 
@@ -966,6 +972,8 @@ class SporeContext(ompx.MPxContext):
         if self.canvas:
             self.canvas.update()
             del self.canvas
+
+        self.logger.info('Spore Context clean up')
 
 
     """ -------------------------------------------------------------------- """
