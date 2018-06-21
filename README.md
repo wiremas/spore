@@ -36,6 +36,12 @@ spore any /path/to/spore/spore
 ```
 3. make sure the spore.mod file is in your MAYA_MODULE_PATH environment variable
 
+
+# Dependencies
+
+In order to run **spore** you need to have **scipy** and **numpy** installed.
+
+
 # Usage
 
 Load the spore plugin from Maya's plugin manager.
@@ -43,10 +49,6 @@ Select your target surface than select all the object you want to scatter.
 From the spore menu select "Create Spore Setup" or "Spore" to open the spore manager.
 
 ![alt text](https://github.com/wiremas/spore/blob/master/res/spore_menu.png "spore menu")
-
-# Dependencies
-
-In order to run **spore** you need to have **scipy** and **numpy** installed.
 
 
 # sporeNode
