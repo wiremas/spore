@@ -7,6 +7,7 @@ except ImportError:
 
 import maya.OpenMaya as om
 
+import logging_util
 import progress_bar
 
 
@@ -17,6 +18,10 @@ class GeoCache(object):
     """
 
     def __init__(self):
+
+        self.logger = logging_util.SporeLogger(__name__)
+        self.logger.debug('Instanciate GeoCache')
+
         self.p0 = om.MPointArray()
         self.p1 = om.MPointArray()
         self.p2 = om.MPointArray()
@@ -39,6 +44,8 @@ class GeoCache(object):
 
         self.flush_cache()
         self.mesh = mesh
+
+        self.logger.debug('Cache geometry: {}'.format(mesh)) # TODO - get node name
 
         #  in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
         mesh_fn = om.MFnMesh(self.mesh)
@@ -118,6 +125,8 @@ class GeoCache(object):
 
     def create_uv_lookup(self):
 
+        self.logger.debug('Create UV lookup for the current GeoCache')
+
         util = om.MScriptUtil()
         connected_faces = om.MIntArray()
 
@@ -158,10 +167,12 @@ class GeoCache(object):
         mesh_fn.getPoints(points)
 
         if points.length() != self.poly_verts.length():
+            self.logger.debug('Validate GeoCache succeded')
             return False
 
         for i in xrange(points.length()):
             if points[i] != self.poly_verts[i]:
+                self.logger.debug('Validate GeoCache failed')
                 return False
 
         return True
@@ -259,6 +270,7 @@ class GeoCache(object):
 
     def flush_cache(self):
 
+        self.logger.debug('Flush GeoCache')
         self.p0 = om.MPointArray()
         self.p1 = om.MPointArray()
         self.p2 = om.MPointArray()
