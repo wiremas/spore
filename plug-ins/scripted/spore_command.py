@@ -14,6 +14,7 @@ return: list containing the sporeShape as first and
 import maya.OpenMaya as om
 import maya.OpenMayaMPx as ompx
 
+import logging_util
 
 k_name_flag = "-n"
 k_name_long_flag = "-name"
@@ -24,6 +25,8 @@ class SporeCommand(ompx.MPxCommand):
 
     def __init__(self):
         ompx.MPxCommand.__init__(self)
+
+        self.logger = logging_util.SporeLogger(__name__)
         self.dag_mod = om.MDagModifier()
         self.dg_mod = om.MDGModifier()
         self.spore = om.MObject()
@@ -47,7 +50,8 @@ class SporeCommand(ompx.MPxCommand):
     def doIt(self, args):
         """ do """
 
-        self.parse_args(args)
+        if not self.parse_args(args):
+            return
 
         # create sporeNode and instancer
         #  spore_transform = self.dg_mod.createNode('transform')
@@ -132,7 +136,8 @@ class SporeCommand(ompx.MPxCommand):
 
         #  # check if we got at least on item
         if selection.length() == 0:
-            raise RuntimeError('The spore command requires at least 1 argument(s) to be specified or selected;  found 0.')
+            self.logger.error('Spore Command failed: Nothing Selected')
+            return False
 
         for i in xrange(selection.length()):
             dag_path = om.MDagPath()
@@ -140,21 +145,24 @@ class SporeCommand(ompx.MPxCommand):
 
             # get target
             if i == 0:
-                #  script_util = om.MScriptUtil()
-                #  #  script_util.createFromInt(0)
-                #  int_ptr = script_util.asUintPtr()
-                #  dag_path.numberOfShapesDirectlyBelow(int_ptr)
-                #  num_shapes = script_util.asUint()
-                #  print num_shapes, dag_path.fullPathName()
-                #  if num_shapes > 1:
-                #      self.displayError('{} has more than one shape'.format(dag_path.fullPathName()))
-                # TODO check if is kMesh
-                dag_path.extendToShape()
-                self.target = dag_path.node()
+
+                try:
+                    dag_path.extendToShape()
+                except RuntimeError:
+                    self.logger.error('Spore Command failed: Object has more than one shape')
+                    return False
+
+                if dag_path.hasFn(om.MFn.kMesh):
+                    self.target = dag_path.node()
+                else:
+                    self.logger.error('Spore Command failed: Object is not of type kMesh')
+                    return False
 
             # get source
             else:
                 self.source.append(dag_path.node())
+
+        return True
 
 
 
