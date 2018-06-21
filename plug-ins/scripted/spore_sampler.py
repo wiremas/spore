@@ -277,7 +277,8 @@ class SporeSampler(ompx.MPxCommand):
         mesh. note: evaluating uvs on high poly meshes may take a long time """
 
         if not self.geo_cache.validate_cache():
-            self.geo_cache.cache_geometry()
+            in_mesh = node_utils.get_connected_in_mesh(self.target, False)
+            self.geo_cache.cache_geometry(in_mesh)
 
         self.point_data.set_length(num_points)
         [self.sample_triangle(random.choice(self.geo_cache.weighted_ids), i) for i in xrange(num_points)]
