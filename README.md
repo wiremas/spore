@@ -41,6 +41,9 @@ spore any /path/to/spore/spore
 
 In order to run **spore** you need to have **scipy** and **numpy** installed.
 
+To submit anonymous bug reports you need to install the **requests** module.<br/>
+Though this would help me to improve further versions it is not necessary to run spore.
+
 
 # Usage
 
@@ -144,7 +147,7 @@ The *sporeNode* features four different sampling types:
    http://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf<br/>
    <br/>
    
-![alt text](https://github.com/wiremas/spore/blob/master/res/sampler.png "spore menu")
+![alt text](https://github.com/wiremas/spore/blob/master/res/spore_sampler.png "spore sampler")
 
 *Geometry Cache*<br/>
 <br/>
@@ -271,6 +274,7 @@ In **Exclusive Mode** the context works only on certain objectIndex IDs.
 To activate **Exclusive Mode** select the desired sources objects in the
 sporeNode's instance object list.
 
+
 # sporeCommand
 The spore command can be used to create a new spore setup from Maya's script editor.
 ```
@@ -278,12 +282,12 @@ cmds.spore()
 ```
 
 
-# sporeManager
+# Spore Manager
 
-The **sporeManager** is a interface which lists all spore nodes in the scene.<br/>
+The **Spore Manager** is a interface which lists all spore nodes in the scene.<br/>
 It helps to quickly switch between different setups and display modes or create new spore nodes<br/>
 
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_manager.png "spore menu")
+![alt text](https://github.com/wiremas/spore/blob/master/res/spore_manager.png "spore manager")
 
 | Navigation				|														|
 | ------------------------- |:----------------------------------------------------- |
@@ -298,4 +302,19 @@ It helps to quickly switch between different setups and display modes or create 
 | bounding box				| Set instancer LoD to bounding box						|
 | bounding boxes			| Set instancer LoD to bounding boxes					|
 | solo						| Solo the instancer connected to the specified spore node |
+
+
+# Spore Reporter
+
+The **Spore Reporter** helps to track issues and bugs or simply suggest a feature.
+When *Report Bugs* is enabled in the spore globals the **Spore Reporter** pops up whenever
+an unhandled error occurs.
+To send reports automatically enable *Automatic Report* in the spore globals.
+
+![alt text](https://github.com/wiremas/spore/blob/master/res/spore_reporter.png "spore reporter")
+
+The report tool wraps an onlineservice called [anonymouse.org](http://anonymouse.org/anonemail_de.html).
+Message delivery can take up to twelve hours.
+
+Note: The *requests* module must be installed to send reports.
 
