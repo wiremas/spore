@@ -1,4 +1,3 @@
-import sip
 
 from PySide2.QtWidgets import (QWidget, QGridLayout, QPushButton, QFrame,
                                QHBoxLayout, QVBoxLayout, QLabel, QScrollArea,
