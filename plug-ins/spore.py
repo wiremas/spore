@@ -1,47 +1,43 @@
 import sys
+from logging import DEBUG, INFO, WARN, ERROR
 
 import pymel.core as pm
+import maya.utils as mu
 import maya.cmds as cmds
 import maya.OpenMaya as om
 import maya.OpenMayaMPx as ompx
 
 import AEsporeNodeTemplate
+import dispatcher
+import environment_util
+import logging_util
+import dispatcher
 from scripted import spore_node
 from scripted import spore_context
 from scripted import spore_command
 from scripted import spore_sampler
 
+reload(dispatcher)
 reload(spore_node)
 reload(spore_context)
 reload(spore_command)
 reload(spore_sampler)
 reload(AEsporeNodeTemplate)
+reload(logging_util)
+reload(environment_util)
 
 import maya.mel as mel
 mel.eval('refreshEditorTemplates;')
 
 
-CALLBACKS = om.MCallbackIdArray()
-MENU = None
-# menu items   #Label                   #commande
-MENU_ITEMS = (('Spore',                 'import manager;reload(manager)'),
-              (None,                    None), # None is a separator
-              ('Create Spore Setup',    'cmds.spore()'),
-              ('Help',                  ''))
-
-
 def initializePlugin(mobject):
-    """ initialize plugins & create menu"""
+    """ initialize plugins
+    this is basically the entry point for everything. as soon as maya loads
+    the spore plugin the initializePlugin function is triggered which is also
+    used to set up things like callbacks, menu and log """
 
-    # create global tracking dir to keep track of out nodes
-    if not hasattr(sys, '_global_spore_tracking_dir'):
-        sys._global_spore_tracking_dir = dict()
-
-    # set up callbacks
-    CALLBACKS.append(om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeOpen,
-                                                  clear_tracking_dir))
-    CALLBACKS.append(om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeNew,
-                                                  clear_tracking_dir))
+    # first instantiatet the global spore dispatcher class
+    sys._global_spore_dispatcher = dispatcher.SporeDispatcher()
 
     mplugin = ompx.MFnPlugin(mobject, 'Anno Schachner', '0.0.25')
 
@@ -80,18 +76,6 @@ def initializePlugin(mobject):
         sys.stderr.write('Failed to register spore command: {}'.format(spore_sampler.SporeSampler.name))
         raise
 
-    # cereate spore menu
-    global MENU
-    if not MENU:
-        main_wnd = pm.language.melGlobals['gMainWindow']
-        MENU = pm.menu('Spore', parent=main_wnd)
-
-    # add menu items
-    pm.menuItem(l='Spore', c='import manager;reload(manager)', parent=MENU)
-    pm.menuItem(divider=True)
-    pm.menuItem(l='Create Spore Setup', c='cmds.spore()', parent=MENU)
-    pm.menuItem(divider=True)
-    pm.menuItem(l='Help', c='print help', parent=MENU)
 
 def uninitializePlugin(mobject):
     """ uninitialize plugins in reverse order & delete menu """
@@ -123,19 +107,6 @@ def uninitializePlugin(mobject):
         sys.stderr.write("Failed to deregister node: %s" % spore_node.SporeNode.name)
         raise
 
-    # delete menu
-    pm.deleteUI(MENU)
-
-    # remove callbacks
-    for i in xrange(CALLBACKS.length()):
-        callback = CALLBACKS[i]
-        om.MSceneMessage.removeCallback(callback)
-
-def clear_tracking_dir(*args):
-    """ clean up the global spore tracking dir when a new file is created
-    or opened """
-
-    sys._global_spore_tracking_dir = {}
-
-
+    sys._global_spore_dispatcher.clean_up()
+    del sys._global_spore_dispatcher
 
