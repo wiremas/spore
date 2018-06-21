@@ -30,6 +30,9 @@ import maya.mel as mel
 mel.eval('refreshEditorTemplates;')
 
 
+__version__ = '0.5'
+
+
 def initializePlugin(mobject):
     """ initialize plugins
     this is basically the entry point for everything. as soon as maya loads
@@ -39,7 +42,7 @@ def initializePlugin(mobject):
     # first instantiatet the global spore dispatcher class
     sys._global_spore_dispatcher = dispatcher.SporeDispatcher()
 
-    mplugin = ompx.MFnPlugin(mobject, 'Anno Schachner', '0.0.25')
+    mplugin = ompx.MFnPlugin(mobject, 'Anno Schachner', __version__)
 
     try: # register node prototype
         mplugin.registerNode(spore_node.SporeNode.name,
