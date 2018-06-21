@@ -1,3 +1,5 @@
+import time
+
 import maya.cmds as cmds
 import maya.OpenMaya as om
 
@@ -10,6 +12,8 @@ except ImportError:
 
 import node_utils
 import window_utils
+import logging_util
+
 
 
 class InstanceData(object):
@@ -17,6 +21,8 @@ class InstanceData(object):
     scattered points and allows to set, add, modify or query points """
 
     def __init__(self, node):
+
+        self.logger = logging_util.SporeLogger(__name__)
 
         dg_fn = om.MFnDependencyNode(node)
         self.node_name = dg_fn.name()
@@ -46,7 +52,7 @@ class InstanceData(object):
         self.np_position = np.empty((0,3), float)
         self.tree = None
 
-        #  self.initialize_data()
+        self.logger.info('Instanciate new InstanceData object for: {}'.format(self.node_name))
 
     def initialize_data(self):
         """ get cache data from the sporeNode's instanceData plug/
@@ -76,7 +82,8 @@ class InstanceData(object):
         for i in xrange(self.position.length()):
             position = [[self.position[i].x, self.position[i].y, self.position[i].z]]
             self.np_position = np.append(self.np_position, position, axis=0)
-        #  print 'init np arrat:', self.np_position
+
+        self.logger.debug('Initialize InstanceData object for: {}'.format(self.node_name))
 
     def set_state(self):
         """ set the currently cached point data as node instanceData attribute
@@ -89,6 +96,7 @@ class InstanceData(object):
         node_fn = om.MFnDependencyNode(self.node)
         num_spores_plug = node_fn.findPlug('numSpores')
         num_spores_plug.setInt(len(self))
+
 
     def get_data_object(self):
         """ return the mObject containing instanceData attribute
@@ -177,7 +185,8 @@ class InstanceData(object):
                 assert len(index) == color.length()
                 length = color.length()
         except AssertionError:
-            raise RuntimeError('Could not set point: input array length does not match')
+            self.logger.error('Could not set points: Array length does not match'.format(self.node_name))
+            return
 
         # set points
         for i in xrange(length):
@@ -213,8 +222,8 @@ class InstanceData(object):
         do nothing when the given length is shorter than the current
         arrays since this would destroy instance data """
 
-        if len(self) >= length:
-            raise RuntimeWarning('Set length would destroy instance Data. Skipped...')
+        if len(self) > length:
+            self.logger.warning('Set length would destroy instance Data. Skipped...')
             return
 
         self.position.setLength(length)
@@ -236,7 +245,7 @@ class InstanceData(object):
         """ set the given index of the array to the given data """
 
         if index >= self.position.length():
-            raise IndexError('Can\'t set point data: Index out of range')
+            self.logger.error('Can\'t set point data: Index out of range')
 
         self.position.set(position, index)
         self.rotation.set(rotation, index)
@@ -281,6 +290,8 @@ class InstanceData(object):
     def build_kd_tree(self, refresh_position=False):
         """ build the kd tree """
 
+        t1 = time.time()
+
         if refresh_position:
             self.np_position = np.empty((0, 3), float)
             for i in xrange(self.position.length()):
@@ -289,6 +300,8 @@ class InstanceData(object):
 
         self.tree = kd_tree(self.np_position)
 
+        t_result = round(time.time() - t1, 5)
+        self.logger.debug('Built KDTree ({}) for {} points in: {}s'.format(self.node_name, len(self), t_result))
 
     def get_scale_average(self, index):
         """ get the average scale value for the given list of indexes
@@ -363,6 +376,7 @@ class InstanceData(object):
             assert self.position.length() == self.color.length()
             assert self.position.length() == len(self.np_position)
         except AssertionError:
+            self.logger.critical('InstanceData validation failed!')
             print self.position.length()
             print self.scale.length()
             print self.instance_id.length()
@@ -374,7 +388,7 @@ class InstanceData(object):
             print self.poly_id.length()
             print self.color.length()
             print len(self.np_position)
-            raise RuntimeError('instance Data out of sync')
+            return False
             # TODO - try to repair
 
 
@@ -402,13 +416,25 @@ class InstanceData(object):
         """ remove all points that a invisible after the delete brush
         has initially hidden them and is tearn down when the has been context left """
 
+        self.logger.debug('Cleaning up InstanceData...')
         invalid_ids = [i for i in xrange(self.visibility.length()) if self.visibility[i] == 0]
         invalid_ids = sorted(invalid_ids, reverse=True)
 
-        self.is_valid()
+        if invalid_ids[0] > len(self) - 1:
+            self.logger.error('Cleanup operation about to fail. ID out of range: {} out of {}. Try to rescue...'.format(invalid_ids[0], len(self)))
 
-        # TODO - check if invalid ids are in range.
-        # otherwise maya crashes
+            max_id = invalid_ids.pop(-1)
+            while max_id > len(self) - 1:
+                if len(invalid_ids):
+                    max_id = invalid_ids.pop(-1)
+                else:
+                    self.logger.critical('Cleanup operation failed: All IDs where invald')
+                    return
+
+        if not self.is_valid():
+            self.logger.error('Cleanup operation failed, Instance Data is out of sync.')
+            return
+
 
         for index in invalid_ids:
             self.position.remove(index)
@@ -475,19 +501,20 @@ class InstanceData(object):
                 self.unique_id.set(len(self), len(self))
 
         else:
-            raise TypeError('Can only add InstanceData to InstanceData. Not InstanceData and {}'.format(type(other)))
+            self.logger.error('Can only add InstanceData to InstanceData. Not {} to InstanceData'.format(type(other)))
+            return self
 
         return self
 
     def __iadd__(self, other):
         return self + other
 
-    def __repr__(self):
-        pass
-
-    def __str__(self):
-        return 'INSTANCE DATA OBJECT'
-
+    #  def __repr__(self):
+    #      pass
+    #
+    #  def __str__(self):
+    #      return 'INSTANCE DATA OBJECT'
+    #
     def __del__(self):
         print 'del ptc'
 
