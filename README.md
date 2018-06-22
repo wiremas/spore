@@ -23,7 +23,7 @@ Points can eigther be place with on of four different sampling algorithms or wit
 Once points have been placed in the scene they can be interactively and effortless modified using one
 of four different "grooming" brushes.
 
-
+	
 # Installation
 
 1. clone the git repo
@@ -40,8 +40,14 @@ spore any /path/to/spore/spore
 # Dependencies
 
 In order to run **spore** you need to have **scipy** and **numpy** installed.<br/>
+
 If you're running Linux or Mac just install using pip.<br/>
-If you're running Windows try to follow this [guide](https://forums.autodesk.com/t5/maya-programming/guide-how-to-install-numpy-scipy-in-maya-windows-64-bit/td-p/5796722).
+If you're running Windows you should run...
+```
+pip install -i https://pypi.anaconda.org/carlkl/simple numpy
+pip install -i https://pypi.anaconda.org/carlkl/simple scipy
+```
+... or try follow this [guide](https://forums.autodesk.com/t5/maya-programming/guide-how-to-install-numpy-scipy-in-maya-windows-64-bit/td-p/5796722).
 
 To submit anonymous bug reports you need to install the **requests** library.<br/>
 Though this would help me to improve further versions it is not necessary to run spore.
@@ -50,8 +56,10 @@ Though this would help me to improve further versions it is not necessary to run
 # Usage
 
 Load the spore plugin from Maya's plugin manager.
-Select your target surface than select all the object you want to scatter.
-From the spore menu select "Create Spore Setup" or "Spore" to open the spore manager.
+
+![alt text](https://github.com/wiremas/spore/blob/master/res/spore_plugin.png "spore plugin")
+
+From the *"Spore"* menu select *"Spore Manager"* to open the ui.
 
 ![alt text](https://github.com/wiremas/spore/blob/master/res/spore_menu.png "spore menu")
 
@@ -308,7 +316,7 @@ It helps to quickly switch between different setups and display modes or create 
 | bounding boxes			| Set instancer LoD to bounding boxes					|
 | solo						| Solo the instancer connected to the specified spore node |
 
-
+		
 # Spore Reporter
 
 The **Spore Reporter** helps to track issues and bugs or simply suggest a feature.
