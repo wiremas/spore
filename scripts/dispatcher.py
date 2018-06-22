@@ -36,7 +36,7 @@ class GlobalSporeDispatcher(object):
         self.set_environment()
 
         # initialize global services
-        self.spore_globals = settings.SporeSettings()
+        self.spore_globals = settings.SporeGlobals()
 
         self.spore_manager = manager.SporeManager()
         self.spore_reporter = reporter.Reporter()
