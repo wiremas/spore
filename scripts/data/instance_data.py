@@ -375,6 +375,7 @@ class InstanceData(object):
             assert self.position.length() == self.poly_id.length()
             assert self.position.length() == self.color.length()
             assert self.position.length() == len(self.np_position)
+            return True
         except AssertionError:
             self.logger.critical('InstanceData validation failed!')
             print self.position.length()
