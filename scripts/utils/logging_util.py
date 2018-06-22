@@ -57,9 +57,10 @@ class SporeLogger(object):
         if not cmds.about(batch=True) and 'spore' in err.splitlines()[0]:
             self.logger.critical('Uncaught exception:\n', exc_info=(typ, value, traceback))
 
-            if sys._global_spore_dispatcher.get_pref('REPORT'):
+            spore_globals = sys._global_spore_dispatcher.spore_globals
+            if spore_globals['REPORT']:
                 error_info = (typ, value, traceback, detail)
-                if sys._global_spore_dispatcher.get_pref('AUTOMATIC_REPORT'):
+                if spore_globals['AUTOMATIC_REPORT']:
                     rep = reporter.get_reporter()
                     rep.direct_submit()
                 else:
