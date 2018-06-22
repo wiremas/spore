@@ -18,7 +18,7 @@ class SporeGlobals(object):
 
     default_prefs = {
                      'INITIAL_STARTUP': True, # Indicates that spore starts up for the first time
-                     'LOG_LEVEL': DEBUG, # Set the log level for spore
+                     'LOG_LEVEL': ERROR, # Set the log level for spore
                      'AUTOMATIC_REPORT': REPORT_DEFAULT, # Submit reports automatically
                      'REPORT': True, # Enable/Disabel reporting
                      'SENDER': ' ' # Store sender email address
