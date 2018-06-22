@@ -16,8 +16,8 @@ The **sporeContext** is designed to place and manipulate points in the *instance
 # Motivation
 
 While particle instancing in Maya is a popular way to populate environments,
-the means of manipulating per-particle attributes with particles are limited
-and require some specific knowledge.
+the means of manipulating per-particle attributes are limited and require some
+specific knowledge.
 
 Spore tries to create a more intuitive interface to creating and manipulating points that drive
 Maya's particles instancer. Spore allows to scatter, paint and modify points in an easy an intuitive way.
@@ -32,11 +32,15 @@ of four different "grooming" brushes.
 ```
 git clone https://github.com/wiremas/spore
 ```
-2. edit the spore.mod file to match the location on you machine:
+2. edit the spore.mod file to match the spore location on you machine:
 ```
 spore any /path/to/spore/spore
 ```
-3. make sure the spore.mod file is in your MAYA_MODULE_PATH environment variable
+3. copy the spore.mod file to location your MAYA_MODULE_PATH environment variable points.<br\>
+   Run the following mel command to find an appropriate location
+```
+getenv("MAYA_MODULE_PATH")
+```
 
 
 # Dependencies
@@ -49,7 +53,7 @@ In order to run **spore** you need to have **scipy** and **numpy** installed.<br
 pip install -i https://pypi.anaconda.org/carlkl/simple numpy
 pip install -i https://pypi.anaconda.org/carlkl/simple scipy
 ```
-... or try follow this [guide](https://forums.autodesk.com/t5/maya-programming/guide-how-to-install-numpy-scipy-in-maya-windows-64-bit/td-p/5796722).
+... or try to follow this [guide](https://forums.autodesk.com/t5/maya-programming/guide-how-to-install-numpy-scipy-in-maya-windows-64-bit/td-p/5796722).
 
 ### Optional
 
