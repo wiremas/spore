@@ -1,4 +1,4 @@
-#Spore
+# Spore
 
 ![alt text](https://github.com/wiremas/spore/blob/master/res/spore_header.png "spore header")
 
