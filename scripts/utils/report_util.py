@@ -6,8 +6,7 @@ try:
     import requests
 except ImportError:
     import message_utils
-    message_utils.displayWarning('No module named request\nBug reporting will be disabled\nI\'d still appreciate if you send your log files to anno.schachner@gmail.com\nThis helps to improofe later version. Thank you!')
-    sys._global_spore_dispatcher.set_pref('REPORT', False)
+    message_utils.IOHandler().warn_dialog('No module named request\nBug reporting will be disabled\nI\'d still appreciate if you send your log files to anno.schachner@gmail.com\nThis helps to improve later version. Thank you!')
 
 import maya.cmds as cmds
 
@@ -21,7 +20,8 @@ class MailWrapper(object):
     TARGET_ADD = 'anno.schachner@gmail.com'
 
     def __init__(self):
-        self.logger = logging_util.SporeLogger(__name__)
+        log_lvl = sys._global_spore_dispatcher.spore_globals['LOG_LEVEL']
+        self.logger = logging_util.SporeLogger(__name__, log_lvl)
 
     def submit_report(self, subject, msg):
         """ submit the report with the given subject and message
