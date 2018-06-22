@@ -10,8 +10,6 @@ attribute which is designed to be hooked to Maya's particle instancer node.
 
 The **sporeContext** is designed to place and manipulate points in the *instanceData* attribute.
 
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_spacer.png "spore spacer")
-
 
 # Motivation
 
@@ -24,8 +22,6 @@ Maya's particles instancer. Spore allows to scatter, paint and modify points in 
 Points can eigther be place with on of four different sampling algorithms or with an interactive brush context.
 Once points have been placed in the scene they can be interactively and effortless modified using one
 of four different "grooming" brushes.
-
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_spacer.png "spore spacer")
 
 
 # Installation
@@ -40,8 +36,6 @@ spore any /path/to/spore/spore
 ```
 3. make sure the spore.mod file is in your MAYA_MODULE_PATH environment variable
 
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_spacer.png "spore spacer")
-
 
 # Dependencies
 
@@ -52,8 +46,6 @@ If you're running Windows try to follow this [guide](https://forums.autodesk.com
 To submit anonymous bug reports you need to install the **requests** library.<br/>
 Though this would help me to improve further versions it is not necessary to run spore.
 
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_spacer.png "spore spacer")
-
 
 # Usage
 
@@ -62,8 +54,6 @@ Select your target surface than select all the object you want to scatter.
 From the spore menu select "Create Spore Setup" or "Spore" to open the spore manager.
 
 ![alt text](https://github.com/wiremas/spore/blob/master/res/spore_menu.png "spore menu")
-
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_spacer.png "spore spacer")
 
 
 # sporeNode
@@ -208,8 +198,6 @@ Sampled points can be filtered using one of the following operations:
    | Max Slope					| Maximal angle											|
    | Slope Fuzziness			| Set fuzziness											|
 
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_spacer.png "spore spacer")
-
 
 # sporeContext
 
@@ -289,7 +277,7 @@ In **Exclusive Mode** the context works only on certain objectIndex IDs.
 To activate **Exclusive Mode** select the desired sources objects in the
 sporeNode's instance object list.
 
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_spacer.png "spore spacer")
+
 
 
 # sporeCommand
@@ -297,8 +285,6 @@ The spore command can be used to create a new spore setup from Maya's script edi
 ```
 cmds.spore()
 ```
-
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_spacer.png "spore spacer")
 
 
 # Spore Manager
@@ -321,8 +307,6 @@ It helps to quickly switch between different setups and display modes or create 
 | bounding box				| Set instancer LoD to bounding box						|
 | bounding boxes			| Set instancer LoD to bounding boxes					|
 | solo						| Solo the instancer connected to the specified spore node |
-
-![alt text](https://github.com/wiremas/spore/blob/master/res/spore_spacer.png "spore spacer")
 
 
 # Spore Reporter
