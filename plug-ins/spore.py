@@ -30,17 +30,17 @@ import maya.mel as mel
 mel.eval('refreshEditorTemplates;')
 
 
-__version__ = '0.5'
+__version__ = 'v0.1.0'
 
 
 def initializePlugin(mobject):
-    """ initialize plugins
-    this is basically the entry point for everything. as soon as maya loads
-    the spore plugin the initializePlugin function is triggered which is also
-    used to set up things like callbacks, menu and log """
+    """ initialize plugins. this is the entry point for spore.
+    as soon as maya loads the spore plugin the initializePlugin function is
+    called which is also triggers everythin to set up. """
 
     # first instantiatet the global spore dispatcher class
-    sys._global_spore_dispatcher = dispatcher.SporeDispatcher()
+    sys._global_spore_dispatcher = dispatcher.GlobalSporeDispatcher()
+    sys._global_spore_dispatcher.logger.debug('Loading Spore plugin')
 
     mplugin = ompx.MFnPlugin(mobject, 'Anno Schachner', __version__)
 
@@ -83,6 +83,7 @@ def initializePlugin(mobject):
 def uninitializePlugin(mobject):
     """ uninitialize plugins in reverse order & delete menu """
 
+    sys._global_spore_dispatcher.logger.debug('Unloading Spore plugin')
     mplugin = ompx.MFnPlugin(mobject)
 
     try:
