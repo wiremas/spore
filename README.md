@@ -1,3 +1,5 @@
+#Spore
+
 ![alt text](https://github.com/wiremas/spore/blob/master/res/spore_header.png "spore header")
 
 > Paintable particle node for Maya
@@ -41,13 +43,15 @@ spore any /path/to/spore/spore
 
 In order to run **spore** you need to have **scipy** and **numpy** installed.<br/>
 
-If you're running Linux or Mac just install using pip.<br/>
-If you're running Windows you should run...
+- If you're running Linux or Mac just install using pip.<br/>
+- If you're running Windows you should run...
 ```
 pip install -i https://pypi.anaconda.org/carlkl/simple numpy
 pip install -i https://pypi.anaconda.org/carlkl/simple scipy
 ```
 ... or try follow this [guide](https://forums.autodesk.com/t5/maya-programming/guide-how-to-install-numpy-scipy-in-maya-windows-64-bit/td-p/5796722).
+
+### Optional
 
 To submit anonymous bug reports you need to install the **requests** library.<br/>
 Though this would help me to improve further versions it is not necessary to run spore.
