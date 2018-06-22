@@ -6,7 +6,7 @@ from logging import DEBUG, INFO, WARN, ERROR
 import settings_ui
 import logging_util
 
-reload(settings_ui)
+#  reload(settings_ui)
 
 try:
     import requests

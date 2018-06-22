@@ -12,8 +12,9 @@ from PySide2.QtWidgets import QAction
 
 import manager_ui
 import node_utils
-reload(manager_ui)
 import message_utils
+
+#  reload(manager_ui)
 
 manager = None
 

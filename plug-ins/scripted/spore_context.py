@@ -25,14 +25,14 @@ import event_filter
 import brush_utils
 import logging_util
 
-reload(canvas)
-reload(mesh_utils)
-reload(node_utils)
-reload(message_utils)
-reload(brush_utils)
-reload(brush_state)
-reload(event_filter)
-reload(logging_util)
+#  reload(canvas)
+#  reload(mesh_utils)
+#  reload(node_utils)
+#  reload(message_utils)
+#  reload(brush_utils)
+#  reload(brush_state)
+#  reload(event_filter)
+#  reload(logging_util)
 
 
 """ -------------------------------------------------------------------- """

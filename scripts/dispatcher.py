@@ -22,11 +22,11 @@ import reporter
 import report_util
 import reporter_ui
 
-reload(report_util)
-reload(reporter_ui)
-reload(reporter)
-reload(settings)
-reload(logging_util)
+#  reload(report_util)
+#  reload(reporter_ui)
+#  reload(reporter)
+#  reload(settings)
+#  reload(logging_util)
 
 class GlobalSporeDispatcher(object):
 

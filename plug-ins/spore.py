@@ -10,19 +10,18 @@ import maya.OpenMayaMPx as ompx
 import AEsporeNodeTemplate
 import dispatcher
 import logging_util
-import dispatcher
 from scripted import spore_node
 from scripted import spore_context
 from scripted import spore_command
 from scripted import spore_sampler
 
-reload(dispatcher)
-reload(spore_node)
-reload(spore_context)
-reload(spore_command)
-reload(spore_sampler)
-reload(AEsporeNodeTemplate)
-reload(logging_util)
+#  reload(dispatcher)
+#  reload(spore_node)
+#  reload(spore_context)
+#  reload(spore_command)
+#  reload(spore_sampler)
+#  reload(AEsporeNodeTemplate)
+#  reload(logging_util)
 
 import maya.mel as mel
 mel.eval('refreshEditorTemplates;')
