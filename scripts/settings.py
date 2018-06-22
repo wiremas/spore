@@ -34,7 +34,7 @@ class SporeGlobals(object):
     def __getitem__(self, attr):
         return self.spore_globals[attr]
 
-    def __setitem(self, attr, val):
+    def __setitem__(self, attr, val):
 
         if attr in self.spore_globals.keys():
             if type(value) == type(self.spore_globals[pref]):
