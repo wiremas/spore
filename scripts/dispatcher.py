@@ -16,6 +16,8 @@ import maya.OpenMaya as om
 
 import logging_util
 
+import manager
+import settings
 import reporter
 import report_util
 import reporter_ui
@@ -23,18 +25,10 @@ import reporter_ui
 reload(report_util)
 reload(reporter_ui)
 reload(reporter)
-
+reload(settings)
 reload(logging_util)
 
-class SporeDispatcher(object):
-
-    default_prefs = {
-                     'INITIAL_STARTUP': True, # Indicates that spore starts up for the first time
-                     'LOG_LEVEL': DEBUG, # Set the log level for spore
-                     'AUTOMATIC_REPORT': False, # Submit reports automatically
-                     'REPORT': True, # Enable/Disabel reporting
-                     'SENDER': '' # Store sender email address
-                     }
+class GlobalSporeDispatcher(object):
 
     def __init__(self):
 
@@ -42,13 +36,16 @@ class SporeDispatcher(object):
         self.set_environment()
 
         # initialize global services
-        self.spore_globals = self.parse_prefs()
+        self.spore_globals = settings.SporeSettings()
+
+        self.spore_manager = manager.SporeManager()
+        self.spore_reporter = reporter.Reporter()
+
+        #  self.spore_globals = self.parse_prefs()
         self.logger = self.get_logger()
         self.menu = self.build_menu()
         self.callbacks = self.add_callbacks()
         self.set_tracking_dir()
-
-
 
     def set_environment(self):
         """ set environment variable for spore root, log and pref folders.
@@ -62,25 +59,6 @@ class SporeDispatcher(object):
         os.environ['SPORE_ROOT_DIR'] = spore_root_dir
         os.environ['SPORE_LOG_DIR'] = spore_log_dir
         os.environ['SPORE_PREFS_DIR'] = spore_prefs_dir
-
-    def parse_prefs(self):
-        """ parse the global spore preferences found in the SPORE_PREFS_DIR.
-        if the file does not exist, create it with the default prefs. """
-
-        pref_file = os.path.join(os.environ['SPORE_PREFS_DIR'], 'spore_prefs.json')
-
-        if not os.path.isfile(pref_file):
-            with open(pref_file, 'w') as f:
-                json.dump(self.default_prefs, f)
-
-        with open(pref_file, 'r') as f:
-            try:
-                spore_globals = json.load(f)
-            except ValueError:
-                msg = 'Could not load preference file from: {}\nMaybe badly formatted. Try to delete it...'.format(pref_file)
-                raise RuntimeError(msg)
-
-        return spore_globals
 
     def get_logger(self):
         """ initialize the logger and hook all uncaught exception
@@ -100,14 +78,12 @@ class SporeDispatcher(object):
         self.logger.debug('Build menu...')
         main_wnd = pm.language.melGlobals['gMainWindow']
         menu = pm.menu('Spore', parent=main_wnd)
-
         pm.menuItem(l='Spore Manager', c='import manager;reload(manager)', parent=menu)
         pm.menuItem(divider=True)
         pm.menuItem(l='Create Spore', c='cmds.spore()', parent=menu)
         pm.menuItem(divider=True)
         pm.menuItem(l='Spore Reporter', c='import reporter;reporter.show()', parent=menu)
         pm.menuItem(l='Help', c='print help', parent=menu)
-
         return menu
 
     def remove_menu(self):
@@ -147,29 +123,12 @@ class SporeDispatcher(object):
         :param value: type must match the required type
         :type value: any """
 
-        if pref in self.spore_globals.keys():
-            if type(value) == type(self.spore_globals[pref]):
-                self.logger.debug('Set prefs: {}={}'.format(pref, value))
-                self.spore_globals[pref] = value
-                self.dump_prefs()
-            else:
-                raise TypeError('{} must be of type {}'.format(pref, type(self.spore_globals[pref])))
-        else:
-            raise KeyError('{} is not a valid option'.format(pref))
+        self.spore_globals.set_pref(pref, value)
 
     def get_pref(self, pref):
         """ get the value for the given pref option """
 
-        return self.spore_globals[pref]
-
-    def dump_prefs(self):
-        """ dump the current setting to file """
-
-        pref_file = os.path.join(os.environ['SPORE_PREFS_DIR'], 'spore_prefs.json')
-
-        with open(pref_file, 'w') as f:
-            json.dump(self.default_prefs, f)
-
+        return self.spore_globals.spore_globals[pref]
 
     def clean_up(self):
         del sys._global_spore_tracking_dir
