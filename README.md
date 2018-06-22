@@ -34,9 +34,9 @@ git clone https://github.com/wiremas/spore
 ```
 2. edit the spore.mod file to match the spore location on you machine:
 ```
-spore any /path/to/spore/spore
+spore any /path/to/spore/
 ```
-3. copy the spore.mod file to location your MAYA_MODULE_PATH environment variable points.<br\>
+3. finally copy the spore.mod file to a location your MAYA_MODULE_PATH environment variable points.<br/>
    Run the following mel command to find an appropriate location
 ```
 getenv("MAYA_MODULE_PATH")
