@@ -51,7 +51,7 @@ class GlobalSporeDispatcher(object):
         """ set environment variable for spore root, log and pref folders.
         this is the first method that must be called to get everything going """
 
-        spore_root_dir = os.path.dirname(__file__).replace('/scripts', '')
+        spore_root_dir = os.path.dirname(os.path.dirname(__file__))
 
         spore_log_dir = os.path.join(spore_root_dir, 'log')
         spore_prefs_dir = os.path.join(spore_root_dir, 'prefs')
