@@ -1,12 +1,7 @@
-
 import os
 import sys
-
-try:
-    import requests
-except ImportError:
-    import message_utils
-    message_utils.IOHandler().warn_dialog('No module named request\nBug reporting will be disabled\nI\'d still appreciate if you send your log files to anno.schachner@gmail.com\nThis helps to improve later version. Thank you!')
+import urllib
+import urllib2
 
 import maya.cmds as cmds
 
@@ -24,25 +19,35 @@ class MailWrapper(object):
         self.logger = logging_util.SporeLogger(__name__, log_lvl)
 
     def submit_report(self, subject, msg):
-        """ submit the report with the given subject and message
-        :param subject:
-        :param msg: """
+        """ send a POST request to anonymouse.org to send a email with
+        the given subject and message.
+        :param subject: string containing the subject
+        :type subject: str
+        :param msg: string containing the message
+        :type msg: str
+        :return: True if the email was sent successfull else False
+        :return type: bool """
 
         payload = {'to': self.TARGET_ADD,
                    'subject': subject,
                    'text': msg}
 
-        r = requests.post(self.MAIL_URL, payload)
+        handler = urllib2.HTTPHandler()
+        opener = urllib2.build_opener(handler)
+        data = urllib.urlencode(payload)
+        request = urllib2.Request(self.MAIL_URL, data=data)
+        request.get_method = lambda: "POST"
 
-        if r.status_code == requests.codes.ok:
-            self.logger.debug('Submitted report')
-            print '=' * 40
-            print 'Thank you for submitting your report!'
-            print '=' * 40
+        try:
+            connection = opener.open(request)
+        except urllib2.HTTPError, e:
+            connection = e
 
+        # check. Substitute with appropriate HTTP code.
+        if connection.code == 200:
+            data = connection.read()
+            print '=' * 40 + '\nThank you for submitting your report!\n' + '=' * 40
+            return True
         else:
-            #  self.logger.warn('Could not set report, status code: {}'.format(r.status_code)))
-            cmds.warning('Could not set report, status code: {}'.format(r.status_code))
-
-
-
+            self.logger.error('Could not send report, error code: {}'.format(connection))
+            return False
