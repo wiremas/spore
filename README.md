@@ -55,11 +55,6 @@ pip install -i https://pypi.anaconda.org/carlkl/simple scipy
 ```
 ... or try to follow this [guide](https://forums.autodesk.com/t5/maya-programming/guide-how-to-install-numpy-scipy-in-maya-windows-64-bit/td-p/5796722).
 
-### Optional
-
-To submit anonymous bug reports you need to install the **requests** library.<br/>
-Though this would help me to improve further versions it is not necessary to run spore.
-
 
 # Usage
 
@@ -327,7 +322,7 @@ It helps to quickly switch between different setups and display modes or create 
 		
 # Spore Reporter
 
-The **Spore Reporter** helps to track issues and bugs or simply suggest a feature.
+The **Spore Reporter** helps to track issues and bugs or simply allows you to suggest a feature.
 When *Report Bugs* is enabled in the spore globals the **Spore Reporter** pops up whenever
 an unhandled error occurs.
 To send reports automatically enable *Automatic Report* in the spore globals.
@@ -336,6 +331,4 @@ To send reports automatically enable *Automatic Report* in the spore globals.
 
 The report tool wraps an onlineservice called [anonymouse.org](http://anonymouse.org/anonemail_de.html).
 Message delivery can take up to twelve hours.
-
-Note: The *requests* module must be installed to send reports.
 
