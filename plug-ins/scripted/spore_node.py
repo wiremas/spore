@@ -8,17 +8,11 @@ import maya.OpenMayaMPx as ompx
 import maya.OpenMayaUI as omui
 import maya.OpenMayaRender as omr
 
-#  from spore.data import point_cache
-
 import node_utils
 import instance_data
-#  import ptc_sampler
 import geo_cache
 import progress_bar
-#  import grd_sampler
-#  import dsk_sampler
 
-reload(geo_cache)
 
 class SporeNode(ompx.MPxNode):
     name = 'sporeNode'
@@ -131,16 +125,6 @@ class SporeNode(ompx.MPxNode):
         typed_attr_fn.setHidden(True)
         cls.addAttribute(cls.in_mesh)
 
-        # input attribute
-        #  cls.a_out_mesh = typed_attr_fn.create('outMesh', 'outMesh', om.MFnMeshData.kMesh)
-        #  typed_attr_fn.setKeyable(False)
-        #  typed_attr_fn.setWritable(False)
-        #  #  typed_attr_fn.setKeyable(False)
-        #  #  typed_attr_fn.setReadable(False)
-        #  typed_attr_fn.setReadable(True)
-        #  typed_attr_fn.setStorable(True)
-        #  cls.addAttribute(cls.a_out_mesh)
-
         # brush attributes
         cls.context_mode = enum_attr_fn.create('contextMode', 'contextMode', 0)
         enum_attr_fn.addField('place', 0)
@@ -198,7 +182,7 @@ class SporeNode(ompx.MPxNode):
         numeric_attr_fn.setConnectable(False)
         cls.addAttribute(cls.a_max_scale)
 
-        cls.a_scale_factor = numeric_attr_fn.create('scaleFactor', 'scaleFactor', om.MFnNumericData.kDouble, 1.05)
+        cls.a_scale_factor = numeric_attr_fn.create('scaleFactor', 'scaleFactor', om.MFnNumericData.kDouble, 1.10)
         numeric_attr_fn.setMin(0.001)
         numeric_attr_fn.setSoftMin(0.8)
         numeric_attr_fn.setSoftMax(1.2)
@@ -548,7 +532,6 @@ class SporeNode(ompx.MPxNode):
 
         obj_handle = om.MObjectHandle(self.thisMObject())
         sys._global_spore_tracking_dir[obj_handle.hashCode()] = self
-        #  print 'node hashcode', obj_handle.hashCode(), self
 
         self.callbacks = om.MCallbackIdArray()
         self.callbacks.append(om.MSceneMessage.addCallback(om.MSceneMessage.kBeforeSave, self.write_points))
@@ -567,7 +550,6 @@ class SporeNode(ompx.MPxNode):
     def compute(self, plug, data):
 
         this_node = self.thisMObject()
-        print 'compute', plug.info()
 
         if plug == self.a_instance_data:
 
@@ -615,33 +597,13 @@ class SporeNode(ompx.MPxNode):
 
             is_delete = data.inputValue(self.a_clear).asBool()
             if is_delete:
-                pass
-
-                #  is_delete_handle = data.outputValue(self.a_clear)
-                #  print is_delete_handle
-                #  is_delete_handle.setBool(False)
-                #  is_delete_handle.setMObject(is_delete_handle.data())
-                #  data.setClean(self.a_clear)
                 self._state.clear()
 
                 node_fn = om.MFnDependencyNode(self.thisMObject())
                 clear_plug = node_fn.findPlug('clear')
                 clear_plug.setBool(False)
 
-
             data.setClean(self.a_instance_data)
-
-        #  if plug == self.a_emit_dummy:
-        #      emit_type = data.inputValue(self.a_emit_type).asShort()
-        #      print 'emit type', emit_type
-        #      #  print 'emit type', emit_type.type(), emit_type.asInt() #, emit_t,ype.asInt(), emit_type.asString()
-        #      if emit_type == 0:
-        #          print 'random'
-        #      elif emit_type == 2:
-        #          print 'jitter'
-        #      elif emit_type == 3:
-        #          print 'dsok'
-
 
     def initialize_state(self, plug, data):
         """ initialize the instance data attribute by
