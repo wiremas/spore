@@ -13,14 +13,17 @@ from PySide2.QtWidgets import QAction
 import manager_ui
 import node_utils
 import message_utils
+import logging_util
 
-#  reload(manager_ui)
 
 manager = None
+
 
 class SporeManager(object):
 
     def __init__(self):
+
+        self.logger = logging_util.SporeLogger(__name__)
 
         self.wdg_tree = collections.defaultdict(list)
 
@@ -251,6 +254,7 @@ class SporeManager(object):
 
     def show(self):
         self.add_callbacks()
+        self.refresh_spore()
         self.ui.show(dockable=True)
 
     @Slot()
@@ -259,20 +263,20 @@ class SporeManager(object):
 
 
 
-if __name__ == 'manager':
-
-    #  spore_root = os.path.dirname(__file__)
-    #  os.environ['SPORE_ROOT_DIR'] = spore_root
-
-    #  if not spore_root in sys.path:
-    #      sys.path.append(spore_root)
-    #
-    #
-    #  if not cmds.pluginInfo('spore_plugin', q=True, l=True):
-    #      cmds.loadPlugin(os.path.join(spore_root, 'plugins', 'spore_plugin.py'))
-    #
-    #  global manager
-    if not manager:
-        manager = SporeManager()
-
-    manager.show()
+#  if __name__ == 'manager':
+#
+#      #  spore_root = os.path.dirname(__file__)
+#      #  os.environ['SPORE_ROOT_DIR'] = spore_root
+#
+#      #  if not spore_root in sys.path:
+#      #      sys.path.append(spore_root)
+#      #
+#      #
+#      #  if not cmds.pluginInfo('spore_plugin', q=True, l=True):
+#      #      cmds.loadPlugin(os.path.join(spore_root, 'plugins', 'spore_plugin.py'))
+#      #
+#      #  global manager
+#      if not manager:
+#          manager = SporeManager()
+#
+#      manager.show()
