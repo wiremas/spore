@@ -22,11 +22,29 @@ import reporter
 import report_util
 import reporter_ui
 
-#  reload(report_util)
-#  reload(reporter_ui)
-#  reload(reporter)
-#  reload(settings)
-#  reload(logging_util)
+
+def global_reload():
+    """ filter all loaded spore modules in the script dir and
+    reload each of them. this is a convenience function for developing """
+
+    import inspect
+
+    scripts_dir = os.path.dirname(__file__)
+    for key, module in sys.modules.iteritems():
+
+        try:
+            module_path = inspect.getfile(module)
+        except TypeError:
+            continue
+
+        if module_path == __file__:
+            continue
+
+        if module_path.startswith(scripts_dir):
+            reload(module)
+
+global_reload()
+
 
 class GlobalSporeDispatcher(object):
 
@@ -78,11 +96,12 @@ class GlobalSporeDispatcher(object):
         self.logger.debug('Build menu...')
         main_wnd = pm.language.melGlobals['gMainWindow']
         menu = pm.menu('Spore', parent=main_wnd)
-        pm.menuItem(l='Spore Manager', c='import manager;reload(manager)', parent=menu)
+        pm.menuItem(l='Spore Manager', c='import sys;sys._global_spore_dispatcher.spore_manager.show()', parent=menu)
         pm.menuItem(divider=True)
         pm.menuItem(l='Create Spore', c='cmds.spore()', parent=menu)
         pm.menuItem(divider=True)
-        pm.menuItem(l='Spore Reporter', c='import reporter;reporter.show()', parent=menu)
+        pm.menuItem(l='Spore Globals', c='import sys;sys._global_spore_dispatcher.spore_globals.show()', parent=menu)
+        pm.menuItem(l='Spore Reporter', c='import sys;sys._global_spore_dispatcher.spore_reporter.show()', parent=menu)
         pm.menuItem(l='Help', c='print help', parent=menu)
         return menu
 

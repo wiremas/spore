@@ -1,33 +1,31 @@
 import sys
-from logging import DEBUG, INFO, WARN, ERROR
 
+import maya.mel as mel
 import pymel.core as pm
 import maya.utils as mu
 import maya.cmds as cmds
 import maya.OpenMaya as om
 import maya.OpenMayaMPx as ompx
 
-import AEsporeNodeTemplate
+# first instantiatet the global spore dispatcher class
+# this must be the first thing bevore we import any of the plugins
 import dispatcher
-import logging_util
+reload(dispatcher)
+sys._global_spore_dispatcher = dispatcher.GlobalSporeDispatcher()
+
+# now we can import the spore plugins
+import AEsporeNodeTemplate
 from scripted import spore_node
 from scripted import spore_context
 from scripted import spore_command
 from scripted import spore_sampler
 
-#  reload(dispatcher)
-#  reload(spore_node)
-#  reload(spore_context)
-#  reload(spore_command)
-#  reload(spore_sampler)
-#  reload(AEsporeNodeTemplate)
-#  reload(logging_util)
-
-import maya.mel as mel
+reload(spore_node)
+reload(spore_context)
+reload(spore_command)
+reload(spore_sampler)
+reload(AEsporeNodeTemplate)
 mel.eval('refreshEditorTemplates;')
-
-
-__version__ = 'v0.1.0'
 
 
 def initializePlugin(mobject):
@@ -35,11 +33,8 @@ def initializePlugin(mobject):
     as soon as maya loads the spore plugin the initializePlugin function is
     called which is also triggers everythin to set up. """
 
-    # first instantiatet the global spore dispatcher class
-    sys._global_spore_dispatcher = dispatcher.GlobalSporeDispatcher()
     sys._global_spore_dispatcher.logger.debug('Loading Spore plugin')
-
-    mplugin = ompx.MFnPlugin(mobject, 'Anno Schachner', __version__)
+    mplugin = ompx.MFnPlugin(mobject, 'Anno Schachner', 'v0.1.0.beta')
 
     try: # register node prototype
         mplugin.registerNode(spore_node.SporeNode.name,
