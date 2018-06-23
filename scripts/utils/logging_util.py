@@ -31,21 +31,36 @@ class SporeLogger(object):
 
     def add_handler(self):
         log_file = os.path.join(os.environ['SPORE_LOG_DIR'], 'spore.log')
-        file_hdlr = handlers.RotatingFileHandler(log_file, maxBytes=40000, backupCount=3)
+        file_hdlr = handlers.RotatingFileHandler(log_file, maxBytes=1.5e6, backupCount=5)
         file_formatter = logging.Formatter(self.LOG_FORMAT)
         file_hdlr.setFormatter(file_formatter)
         self.logger.addHandler(file_hdlr)
 
+    def set_log_level(self, log_level):
+        """ set the log level for all spore logger to the given value """
+
+        for name in self.LOGGERS:
+            logger = logging.getLogger(name)
+            logger.setLevel(log_level)
+
     def debug(self, msg, extra=None):
+        """ log a debug message """
+
         self.logger.debug(msg, extra=extra)
 
     def info(self, msg, extra=None):
+        """ log a info message """
+
         self.logger.info(msg, extra=extra)
 
     def warn(self, msg, extra=None):
+        """ log a waring message """
+
         self.logger.warn(msg, extra=extra)
 
     def error(self, msg, extra=None):
+        """ log a error message """
+
         self.logger.error(msg, extra=extra)
 
     def except_hook(self, typ, value, traceback, detail):
