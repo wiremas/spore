@@ -1,5 +1,7 @@
+import sys
 import math
 import numpy as np
+
 try:
     from scipy.spatial import cKDTree as kd_tree
 except ImportError:
@@ -19,8 +21,8 @@ class GeoCache(object):
 
     def __init__(self):
 
-        self.logger = logging_util.SporeLogger(__name__)
-        self.logger.debug('Instanciate GeoCache')
+        log_lvl = sys._global_spore_dispatcher.spore_globals['LOG_LEVEL']
+        self.logger = logging_util.SporeLogger(__name__, log_lvl)
 
         self.p0 = om.MPointArray()
         self.p1 = om.MPointArray()
@@ -45,7 +47,7 @@ class GeoCache(object):
         self.flush_cache()
         self.mesh = mesh
 
-        self.logger.debug('Cache geometry: {}'.format(mesh)) # TODO - get node name
+        self.logger.debug('Cache geometry: {}'.format(mesh.fullPathName())) # TODO - get node name
 
         #  in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
         mesh_fn = om.MFnMesh(self.mesh)
