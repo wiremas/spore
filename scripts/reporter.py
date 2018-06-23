@@ -18,8 +18,6 @@ import logging_util
 import report_util
 import reporter_ui
 
-reload(report_util)
-reload(reporter_ui)
 
 REPORTER = None
 
@@ -68,7 +66,7 @@ class Reporter(object):
         log = self.get_log_content()
         address, subject, msg = self.ui.get_user_input()
         if address:
-            sys._global_spore_dispatcher.set_pref('SENDER', address)
+            sys._global_spore_dispatcher.spore_globals['SENDER'] = address
 
         report = self.format_report(address, subject, msg, log)
 
@@ -88,7 +86,7 @@ class Reporter(object):
         """ disable the bug reporter """
 
         self.logger.debug('User disabled submitting reports')
-        sys._global_spore_dispatcher.set_pref('REPORT', False)
+        sys._global_spore_dispatcher.spore_globals['REPORT'] = False
         self.ui.close()
 
     @Slot()
@@ -96,7 +94,7 @@ class Reporter(object):
         """ opt in to automatically submitting all unhandled exceptions """
 
         self.logger.debug('User opted in to submitting reports automatically')
-        sys._global_spore_dispatcher.set_pref('AUTOMATIC_REPORT', True)
+        sys._global_spore_dispatcher.spore_globals['AUTOMATIC_REPORT'] = True
         self.submit_report()
 
     def direct_submit(self):
@@ -105,7 +103,7 @@ class Reporter(object):
         self.logger.debug('Automatic bug report')
         log = self.get_log_content()
         subject = 'SPORE - Automatic Bug Report'
-        address = sys._global_spore_dispatcher.get_pref('SENDER')
+        address = sys._global_spore_dispatcher.spore_globals['SENDER']
         report = self.format_report(address, subject, '', log)
 
         mail = report_util.MailWrapper()
@@ -114,7 +112,7 @@ class Reporter(object):
     def show(self, err=None):
 
         self.logger.debug('Show Spore Reporter')
-        self.ui.show()
+        self.ui.show(dockable=True)
         log = self.get_log_content()
         self.ui.set_log_text(log)
 
