@@ -91,7 +91,7 @@ class ReporterUI(MayaQWidgetDockableMixin, QWidget):
         msg = self.msg_edt.toPlainText()
         return address, subject, msg
 
-    def show(self):
-        super(ReporterUI, self).show()
+    def show(self, dockable=True):
+        super(ReporterUI, self).show(dockable=dockable)
 
 
