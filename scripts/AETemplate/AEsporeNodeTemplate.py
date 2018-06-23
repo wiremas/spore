@@ -10,14 +10,9 @@ import maya.OpenMaya as om
 from PySide2.QtWidgets import QWidget, QGridLayout, QLabel, QVBoxLayout, QListWidget
 from shiboken2 import wrapInstance
 
-
 import window_utils
 import node_utils
 import message_utils
-#  import navigator_ctrl
-reload(window_utils)
-#  reload(navigator_ctrl)
-reload(node_utils)
 
 
 class AEsporeNodeTemplate(AETemplate):
@@ -53,6 +48,7 @@ class AEsporeNodeTemplate(AETemplate):
         self.jobs.append(cmds.scriptJob(event=["ToolChanged", self.tool_changed]))
 
     def tool_changed(self, *args):
+
         current_tool = cmds.currentCtx()
         if not current_tool.startswith('spore'):
             try:
@@ -72,8 +68,6 @@ class AEsporeNodeTemplate(AETemplate):
         if self.callbacks.length() <= 1:
             m_node = node_utils.get_mobject_from_name(self._node)
             self.callbacks.append(om.MEventMessage.addEventCallback('SelectionChanged', self.selection_changed))
-            #  self.callbacks.append(om.MNodeMessage().addAttributeChangedCallback(m_node, self.hook_qt_widget))
-            #  self.callbacks.append(om.MDGMessage().addConnectionCallback(self.hook_qt_widget))
 
     def selection_changed(self, *args):
         """ make sure to opt out of the current spore tool when the selction
@@ -82,19 +76,19 @@ class AEsporeNodeTemplate(AETemplate):
         if cmds.currentCtx().startswith('spore'):
             cmds.setToolTo('selectSuperContext')
 
-    def hook_qt_widget(self, *args):
-        """ hook the navigator widget to the attribute editor
-        update the navigator widget if it already exists """
-
-        if not self.navigator:
-            container_wdg = get_nav_layout()
-            container_lay = container_wdg.layout() #.children()
-            self.navigator = navigator_ctrl.Navigator(self._node)
-            navigator_wdg = self.navigator.get_widget()
-            container_lay.addWidget(navigator_wdg)
-
-        else:
-            self.navigator.update_ui()
+    #  def hook_qt_widget(self, *args):
+    #      """ hook the navigator widget to the attribute editor
+    #      update the navigator widget if it already exists """
+    #
+    #      if not self.navigator:
+    #          container_wdg = get_nav_layout()
+    #          container_lay = container_wdg.layout() #.children()
+    #          self.navigator = navigator_ctrl.Navigator(self._node)
+    #          navigator_wdg = self.navigator.get_widget()
+    #          container_lay.addWidget(navigator_wdg)
+    #
+    #      else:
+    #          self.navigator.update_ui()
 
     def build_ui(self):
         """ builde node ui """
@@ -113,11 +107,11 @@ class AEsporeNodeTemplate(AETemplate):
         self.addControl('minRotation', label='Min Rotation')
         self.addControl('maxRotation', label='Max Rotation')
         self.addSeparator()
+        self.addControl('minScale', label='Min Scale')
+        self.addControl('maxScale', label='Max Scale')
         self.addControl('uniformScale', label='Uniform Scale',
                         changeCommand=self.uniform_scale_toggle,
                         annotation='Scane Uniformly: Use X Values')
-        self.addControl('minScale', label='Min Scale')
-        self.addControl('maxScale', label='Max Scale')
         self.addControl('scaleFactor', label='Scale Factor')
         self.addControl('scaleAmount', label='Randomize / Smooth')
         self.dimControl(self._node, 'scaleFactor', True)
@@ -216,16 +210,15 @@ class AEsporeNodeTemplate(AETemplate):
         else:
             return
 
-
         form = cmds.formLayout()
         help_lbl = cmds.text(l='Select item(s) to specify an index', align='left')
         scroll_list = cmds.textScrollList('instanceList', ams=True,
                                           append=instanced_geo)
-        add_btn = cmds.symbolButton('addInstanceBtn', width=30, i='UVTBAdd.png',
+        add_btn = cmds.symbolButton('addInstanceBtn', width=30, i='setEdAddCmd.png',
                                     c=pm.Callback(self.add_instance),
                                     ann='Add Selected Object')
         rm_btn = cmds.symbolButton('removeInstanceBtn', width=30,
-                                   i='UVTBRemove.png',
+                                   i='setEdRemoveCmd.png',
                                    c=pm.Callback(self.remove_instance),
                                    ann='Remove Selected Objects')
         instancer_btn = cmds.symbolButton('instancerBtn', width=30, i='info.png',
@@ -432,7 +425,7 @@ class AEsporeNodeTemplate(AETemplate):
         dim_ctrl = {                #    rad    minD,  foff,   stren,  numS,   aliTo   minR,   maxR,   uniS    minS,   maxS,   sFac,   sAmou,  minO,   maxO,   pre,    map,    minP,   maxP
                     'place':            (False, True,   False,  True,   False,  True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
                     'spray':            (True,  True,   False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
-                    'scale':            (True,  False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  True,   True,   False,  False,  True,   False,  p_map,  p_map),
+                    'scale':            (True,  False,  True,   False,  False,  False,  False,  False,  True,   False,  False,  True,   True,   False,  False,  True,   False,  p_map,  p_map),
                     'align':            (True,  False,  True,   True,   False,  True,   False,  False,  False,  False,  False,  False,   True,  False,  False,  True,   False,  p_map,  p_map),
                     'move':             (True,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,   True,  False,  False,  True,   False,  p_map,  p_map),
                     'id':               (True,  True,   False,  False,  True,   False,  False,  False,  False,  False,  False,  False,   True,  False,  False,  True,   False,  p_map,  p_map),
