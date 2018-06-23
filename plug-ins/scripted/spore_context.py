@@ -468,7 +468,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
             if self.brush_state.settings['uni_scale']:
                 step = np.multiply(np.multiply(np.ones(3), np.random.rand() * 2 - 1), amount)
             else:
-                step = np.multiply(np.minus(np.multiply(np.sample(3), 2), 1), amount)
+                step = np.multiply(np.subtract(np.multiply(np.random.sample(3), 2), 1), amount)
             new_scale = np.add(value, step)
             value = om.MVector(new_scale[0], new_scale[1], new_scale[2])
             self.scale.set(value, i)
