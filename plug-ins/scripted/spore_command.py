@@ -10,7 +10,7 @@ return: list containing the sporeShape as first and
         the instancer as second element
 """
 
-
+import maya.cmds as cmds
 import maya.OpenMaya as om
 import maya.OpenMayaMPx as ompx
 
@@ -27,8 +27,9 @@ class SporeCommand(ompx.MPxCommand):
         ompx.MPxCommand.__init__(self)
 
         self.logger = logging_util.SporeLogger(__name__)
-        self.dag_mod = om.MDagModifier()
-        self.dg_mod = om.MDGModifier()
+        self.dag_mod_instancer = om.MDagModifier()
+        self.dag_mod_spore = om.MDagModifier()
+        self.dag_mod_transform = om.MDagModifier()
         self.spore = om.MObject()
         self.instancer = om.MObject()
         self.target = om.MObject()
@@ -54,21 +55,24 @@ class SporeCommand(ompx.MPxCommand):
             return
 
         # create sporeNode and instancer
-        #  spore_transform = self.dg_mod.createNode('transform')
-        self.spore = self.dg_mod.createNode('sporeNode')
-        self.instancer = self.dag_mod.createNode('instancer')
+        self.spore_transform = self.dag_mod_transform.createNode('transform')
+        self.spore = self.dag_mod_spore.createNode('sporeNode', self.spore_transform)
+        self.instancer = self.dag_mod_instancer.createNode('instancer')
 
         # rename nodes
         if self.name:
             self.name = '{}_'.format(self.name)
-        #  self.dg_mod.renameNode(spore_transform, '{}spore'.format(self.name))
-        self.dg_mod.renameNode(self.spore, '{}spore'.format(self.name))
-        self.dag_mod.renameNode(self.instancer, '{}sporeInstancer'.format(self.name))
+        transform_name = self.unique_name('{}Spore'.format(self.name))
+        spore_name = self.unique_name('{}SporeShape'.format(self.name))
+        instancer_name = self.unique_name('{}SporeInstancer'.format(self.name))
+        self.dag_mod_spore.renameNode(self.spore, spore_name)
+        self.dag_mod_transform.renameNode(self.spore_transform, transform_name)
+        self.dag_mod_instancer.renameNode(self.instancer, instancer_name)
 
         # get spore node plugs
-        dg_fn = om.MFnDependencyNode(self.spore)
-        in_mesh_plug = dg_fn.findPlug('inMesh')
-        instance_data_plug = dg_fn.findPlug('instanceData')
+        dag_fn = om.MFnDagNode(self.spore)
+        in_mesh_plug = dag_fn.findPlug('inMesh')
+        instance_data_plug = dag_fn.findPlug('instanceData')
 
         # get instancer plugs
         dg_fn = om.MFnDagNode(self.instancer)
@@ -87,19 +91,20 @@ class SporeCommand(ompx.MPxCommand):
             matrix_plug_array.append(matrix_plug)
 
         # hook everything up
-        self.dg_mod.connect(instance_data_plug, in_points_plug)
-        self.dg_mod.connect(out_mesh_plug, in_mesh_plug)
+        self.dag_mod_spore.connect(instance_data_plug, in_points_plug)
+        self.dag_mod_spore.connect(out_mesh_plug, in_mesh_plug)
         for i in xrange(matrix_plug_array.length()):
             in_plug = in_hierarchy_plug.elementByLogicalIndex(i)
-            self.dg_mod.connect(matrix_plug_array[i], in_plug)
+            self.dag_mod_spore.connect(matrix_plug_array[i], in_plug)
 
         self.redoIt()
 
     def redoIt(self):
         """ redo """
 
-        self.dag_mod.doIt()
-        self.dg_mod.doIt()
+        self.dag_mod_transform.doIt()
+        self.dag_mod_spore.doIt()
+        self.dag_mod_instancer.doIt()
 
         # get result
         result = []
@@ -114,13 +119,20 @@ class SporeCommand(ompx.MPxCommand):
     def undoIt(self):
         """ undo """
 
-        self.dag_mod.undoIt()
-        self.dg_mod.undoIt()
+        self.dag_mod_instancer.undoIt()
+        self.dag_mod_spore.undoIt()
 
     def isUndoable(self):
         """ set undoable """
 
         return True
+
+    def unique_name(self, name):
+        """ make sure the given name is unique or add "1" until it is """
+
+        while cmds.objExists(name):
+            name += '1'
+        return name
 
     def parse_args(self, args):
         """ parse args """

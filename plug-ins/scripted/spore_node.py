@@ -14,7 +14,7 @@ import geo_cache
 import progress_bar
 
 
-class SporeNode(ompx.MPxNode):
+class SporeNode(ompx.MPxLocatorNode): #Node):
     name = 'sporeNode'
     id = om.MTypeId(0x88805)
 
@@ -514,7 +514,8 @@ class SporeNode(ompx.MPxNode):
         cls.attributeAffects(cls.a_clear, cls.a_instance_data)
 
     def __init__(self):
-        ompx.MPxNode.__init__(self)
+        ompx.MPxLocatorNode.__init__(self)
+        #  ompx.MPxNode.__init__(self)
 
     #  def isBounded(self):
     #      return True

@@ -1,3 +1,4 @@
+import sys
 import math
 from maya import cmds
 
@@ -13,12 +14,16 @@ from shiboken2 import wrapInstance
 import window_utils
 import node_utils
 import message_utils
+import logging_util
 
 
 class AEsporeNodeTemplate(AETemplate):
 
     def __init__(self, node):
         super(AEsporeNodeTemplate, self).__init__(node)
+
+        log_lvl = sys._global_spore_dispatcher.spore_globals['LOG_LEVEL']
+        self.logger = logging_util.SporeLogger(__name__, log_lvl)
 
         self._node = node
         self.callbacks = om.MCallbackIdArray()
@@ -29,23 +34,44 @@ class AEsporeNodeTemplate(AETemplate):
 
         self.beginScrollLayout()
         self.build_ui() # build bui
-        #  pm.mel.AElocatorInclude(node) # add defaul controls
+        pm.mel.AElocatorInclude(node) # add defaul controls
         self.addExtraControls('Extra Attributes') # add extra attributes
         self.endScrollLayout()
 
         self.add_script_job()
         self.add_callbacks()
+        #  self.add_ae_change_command()
 
     def __del__(self):
+
+        self.logger.debug('Delete AETemplate object')
         for i in xrange(self.callbacks.length()):
+            self.logger.debug('Remove callback: {}'.format(self.callbacks[i]))
             om.Message().removeCallback(self.callbacks[i])
 
         # kill script jobs
         for job in self.jobs:
+            self.logger.debug('Remove script job: {}'.format(job))
             cmds.scriptJon(kill=job)
 
     def add_script_job(self):
+        """ add a tool changed script job """
+
+        self.logger.debug('Add tool changed script job')
         self.jobs.append(cmds.scriptJob(event=["ToolChanged", self.tool_changed]))
+
+    def add_callbacks(self):
+        """ add callbacks """
+
+        if self.callbacks.length() <= 1:
+            self.logger.debug('Add selection shanged callback')
+            m_node = node_utils.get_mobject_from_name(self._node)
+            self.callbacks.append(om.MEventMessage.addEventCallback('SelectionChanged', self.selection_changed))
+
+    #  def add_ae_change_command(self):
+    #      ae_tabs = maya.mel.eval('$temp = $gAETabLayoutName;')
+    #      cmds.tabLayout(ae_tabs, e=True, changeCommand=self.ae_tab_switched)
+
 
     def tool_changed(self, *args):
 
@@ -62,13 +88,6 @@ class AEsporeNodeTemplate(AETemplate):
             except RuntimeError:
                 pass
 
-    def add_callbacks(self):
-        """ add callbacks """
-
-        if self.callbacks.length() <= 1:
-            m_node = node_utils.get_mobject_from_name(self._node)
-            self.callbacks.append(om.MEventMessage.addEventCallback('SelectionChanged', self.selection_changed))
-
     def selection_changed(self, *args):
         """ make sure to opt out of the current spore tool when the selction
         is changed """
@@ -76,22 +95,8 @@ class AEsporeNodeTemplate(AETemplate):
         if cmds.currentCtx().startswith('spore'):
             cmds.setToolTo('selectSuperContext')
 
-    #  def hook_qt_widget(self, *args):
-    #      """ hook the navigator widget to the attribute editor
-    #      update the navigator widget if it already exists """
-    #
-    #      if not self.navigator:
-    #          container_wdg = get_nav_layout()
-    #          container_lay = container_wdg.layout() #.children()
-    #          self.navigator = navigator_ctrl.Navigator(self._node)
-    #          navigator_wdg = self.navigator.get_widget()
-    #          container_lay.addWidget(navigator_wdg)
-    #
-    #      else:
-    #          self.navigator.update_ui()
-
     def build_ui(self):
-        """ builde node ui """
+        """ build the actual node interface """
 
         # instance source
         self.beginLayout('Instanced Objects', collapse=0)
@@ -119,7 +124,7 @@ class AEsporeNodeTemplate(AETemplate):
         self.addControl('minOffset', label='Min Offset')
         self.addControl('maxOffset', label='Max Offset')
 
-        # preassure mapping controls
+        # preassure mapping controls # not implemented yet
         #  self.addSeparator()
         #  self.addControl('minId', label='Min Id',
         #                  changeCommand=lambda _: self.index_cc('min'))
@@ -135,7 +140,8 @@ class AEsporeNodeTemplate(AETemplate):
 
         # brush attributes
         self.beginLayout('Brush', collapse=True)
-        self.callCustom(self.add_brush_btn, self.update_brush_btn, 'contextMode')
+        self.callCustom(self.add_brush_btn, self.update_brush_btn,
+                        'contextMode')
         self.addControl('brushRadius', label='Radius')
         self.addControl('numBrushSamples', label='Number Of Samples')
         self.addControl('minDistance', label='Min Distance')
@@ -180,14 +186,13 @@ class AEsporeNodeTemplate(AETemplate):
         self.addControl('slopeFuzz', 'Slope Fuzziness')
         self.endLayout()
         self.endLayout()
-        self.callCustom(self.add_emit_btn, self.update_emit_btn, "emit" )
+        self.callCustom(self.add_emit_btn, self.update_emit_btn, "emit")
         self.endLayout()
 
         # count layout
         self.beginLayout('Count', collapse=True)
         self.addControl('numSpores', label='Count')
-        #  self.dimControl(self._node, 'Count', True)
-        self.callCustom(self.add_clear_btn, self.update_clear_btn, 'clear' )
+        self.callCustom(self.add_clear_btn, self.update_clear_btn, 'clear')
         self.endLayout()
 
         # geo cache layout
@@ -207,11 +212,10 @@ class AEsporeNodeTemplate(AETemplate):
         instanced_geo = node_utils.get_instanced_geo(self._node)
         if instanced_geo:
             instanced_geo = ['[{}]: {}'.format(i, name) for i, name in enumerate(instanced_geo)]
-        else:
-            return
 
         form = cmds.formLayout()
-        help_lbl = cmds.text(l='Select item(s) to specify an index', align='left')
+        help_lbl = cmds.text(l='Select item(s) to specify an index',
+                             align='left')
         scroll_list = cmds.textScrollList('instanceList', ams=True,
                                           append=instanced_geo)
         add_btn = cmds.symbolButton('addInstanceBtn', width=30, i='setEdAddCmd.png',
@@ -241,20 +245,59 @@ class AEsporeNodeTemplate(AETemplate):
                                     (scroll_list, 'bottom', 2)])
 
     def update_instance_list(self, *args):
-        """ update the instance list base on the last  spore node
-        in the selection
-        note: i'm not entirly sure if it's solid to query selection for this,
-        but otherwise self._node gives the last selected spore node - bug?!"""
+        """ update the instance listi.
+        1. try to get current node based on ae tab name. this failse if the
+           nodename is not unique. if this happends...
+        2. try to get the node based on last item in selection. this fails
+           if not the item is not a spore shape or spore transform.
+        this method fails when:
+            - two spore locator are parented under the same transform.
+            - the user reaches the node interface without selecting the node """
 
-        selection = cmds.ls(sl=True)[-1]
-        if cmds.objectType(selection) == 'sporeNode':
-            self._node = selection
+        found = False
 
-        instanced_geo = node_utils.get_instanced_geo(self._node)
-        instanced_geo = ['[{}]: {}'.format(i, name) for i, name in enumerate(instanced_geo)]
+        # get current ae tab name
+        ae_tabs = mel.eval('$temp = $gAETabLayoutName;')
+        tab_index = int(cmds.tabLayout(ae_tabs, q=1, st=1).replace('formTab', ''))
+        current_tab = cmds.tabLayout(ae_tabs, q=1, tl=1)[tab_index]
+
+        # try to get node based on selection
+        selection = cmds.ls(sl=True, l=True)[-1]
+        shapes = cmds.listRelatives(selection, s=True, f=True)
+
+        # check if node name is unique or selection is node
+        nodes = cmds.ls(current_tab, l=True)
+        if len(nodes) == 1 or cmds.objectType(selection) == 'sporeNode':
+            if cmds.objectType(selection) == 'sporeNode':
+                self._node = selection
+            else:
+                self._node = nodes[0]
+            found = True
+
+        if len(nodes) > 1:
+            if shapes:
+                # note: this fails in case there are two spore nodes parented under
+                # the same transform
+                for i, shape in enumerate(shapes):
+                    if cmds.objectType(shape) == 'sporeNode':
+                        self._node = shape
+                        found = True
+            else:
+                # TODO - we could also try to catch node based on instancer
+                # ae tab name. this would also fail if the instancer name is
+                # not unique
+                pass
 
         cmds.textScrollList('instanceList', e=1, removeAll=True)
-        cmds.textScrollList('instanceList', e=1, append=instanced_geo)
+        if found:
+            instanced_geo = node_utils.get_instanced_geo(self._node)
+            instanced_geo = ['[{}]: {}'.format(i, name) for i, name in enumerate(instanced_geo)]
+
+            cmds.textScrollList('instanceList', e=1, append=instanced_geo)
+        else:
+            msg = 'Could not update objects list. Node name "{}" not unique'.format(current_tab)
+            self.logger.warn(msg)
+            cmds.textScrollList('instanceList', e=1, append=msg.split('. '))
 
     def add_instance(self):
         """ add a source to the instancer and the sporeNode """
@@ -313,6 +356,10 @@ class AEsporeNodeTemplate(AETemplate):
     def emit(self, *args):
         """ run the actual sample command and check if transforms are frozen """
 
+        # exit spore context since it looses track of points after sampling
+        if cmds.currentCtx().startswith('spore'):
+            cmds.setToolTo('selectSuperContext')
+
         in_mesh = node_utils.get_connected_in_mesh(self._node)
         transform = cmds.listRelatives(in_mesh, p=True, f=True)[0]
         if cmds.getAttr(transform + '.translateX') != 0\
@@ -365,7 +412,6 @@ class AEsporeNodeTemplate(AETemplate):
         cmds.button('removeBtn', l='Remove', c=pm.Callback(self.activateContext, 'remove', attr, 6))
         cmds.setParent('..')
 
-
     def update_brush_btn(self, attr):
 
         cmds.button('placeBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'place', attr, 0))
@@ -393,8 +439,6 @@ class AEsporeNodeTemplate(AETemplate):
                 cmds.button('idBtn', e=True, bgc=(0.148, 0.148, 0.148))
             elif ctx_mode == 6:
                 cmds.button('removeBtn', e=True, bgc=(0.148, 0.148, 0.148))
-
-
 
     def activateContext(self, context_mode, attr, index):
         """ called whenever a brush button is clicked
@@ -553,12 +597,6 @@ class AEsporeNodeTemplate(AETemplate):
         self._node = node
         uniform_scale = not cmds.getAttr('{}.uniformScale'.format(node))
 
-        #  self.dimControl(node, 'minScaleX', uniform_scale)
-        #  self.dimControl(node, 'maxScaleX', uniform_scale)
-        #  self.dimControl(node, 'minScale', uniform_scale)
-        #  self.dimControl(node, 'minScaleX', False)
-        #  self.dimControl(node, 'minScaleY', False)
-
     def index_cc(self, typ):
         """ """
         min_id = cmds.getAttr('{}.minId'.format(self._node))
@@ -568,25 +606,6 @@ class AEsporeNodeTemplate(AETemplate):
             cmds.setAttr('{}.maxId'.format(self._node), min_id)
         elif typ == 'max' and max_id < min_id:
             cmds.setAttr('{}.minId'.format(self._node), max_id)
-
-        #  if min_id > max_id
-
-    # ------------------------------------------------------------------------ #
-    # utils
-    # ------------------------------------------------------------------------ #
-
-    #  def dim_controls(self, *args):
-    #      """ dim / undim all brush controls
-    #      :param dim: bool if we dim or undim the controls """
-    #      dim = True
-    #      print 'args', args
-    #
-    #      for crtl in self.brush_crtls:
-    #          #  self.suppress(crtl)
-    #          #  print 'dim: ', self._node, crtl, dim
-    #          self.dimControl(self._node, crtl, dim)
-    #
-    #
 
 def get_nav_layout():
 
@@ -606,27 +625,3 @@ def get_nav_layout():
     nav_layout = find_first_frame_layout('AttrEdsporeNodeFormLayout')
     return wrapInstance(long(omui.MQtUtil.findControl(nav_layout)), QWidget)
 
-
-
-#
-#  def get_nav_layout():
-#      """ get the navigator frame layout and return and wrap it as qWidget """
-#
-#      def find_first_frame_layout(layout):
-#          """ recursivley get all child layout until we find the first framelayout """
-#
-#          print layout
-#          children = cmds.layout(layout, ca=True, q=True)
-#          print children
-#          if children is None:
-#              return
-#          for child in children:
-#              if child.startswith('frameLayout'):
-#                  return child
-#              if child:
-#                  return find_first_frame_layout(child)
-#
-#      print 'l', cmds.layout('AttrEdsporeNodeFormLayout', q=1, ex=1)
-#      nav_layout = find_first_frame_layout('AttrEdsporeNodeFormLayout')
-#      return wrapInstance(long(omui.MQtUtil.findControl(nav_layout)), qw.QWidget)
-#

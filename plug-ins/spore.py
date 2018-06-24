@@ -41,7 +41,8 @@ def initializePlugin(mobject):
                              spore_node.SporeNode.id,
                              spore_node.SporeNode.creator,
                              spore_node.SporeNode.initialize,
-                             ompx.MPxNode.kDependNode)
+                             ompx.MPxLocatorNode.kLocatorNode)
+                             #  ompx.MPxNode.kDependNode)
     except:
         sys.stderr.write("Failed to register node: %s" % spore_node.SporeNode.name)
         raise
