@@ -1,3 +1,4 @@
+import sys
 import time
 
 import maya.cmds as cmds
@@ -22,7 +23,9 @@ class InstanceData(object):
 
     def __init__(self, node):
 
-        self.logger = logging_util.SporeLogger(__name__)
+        log_lvl = sys._global_spore_dispatcher.spore_globals['LOG_LEVEL']
+        self.logger = logging_util.SporeLogger(__name__, log_lvl)
+
 
         dg_fn = om.MFnDependencyNode(node)
         self.node_name = dg_fn.name()
@@ -419,38 +422,40 @@ class InstanceData(object):
 
         self.logger.debug('Cleaning up InstanceData...')
         invalid_ids = [i for i in xrange(self.visibility.length()) if self.visibility[i] == 0]
-        invalid_ids = sorted(invalid_ids, reverse=True)
 
-        if invalid_ids[0] > len(self) - 1:
-            self.logger.error('Cleanup operation about to fail. ID out of range: {} out of {}. Try to rescue...'.format(invalid_ids[0], len(self)))
+        if invalid_ids:
+            invalid_ids = sorted(invalid_ids, reverse=True)
 
-            max_id = invalid_ids.pop(-1)
-            while max_id > len(self) - 1:
-                if len(invalid_ids):
-                    max_id = invalid_ids.pop(-1)
-                else:
-                    self.logger.critical('Cleanup operation failed: All IDs where invald')
-                    return
+            if invalid_ids[0] > len(self) - 1:
+                self.logger.error('Cleanup operation about to fail. ID out of range: {} out of {}. Try to rescue...'.format(invalid_ids[0], len(self)))
 
-        if not self.is_valid():
-            self.logger.error('Cleanup operation failed, Instance Data is out of sync.')
-            return
+                max_id = invalid_ids.pop(-1)
+                while max_id > len(self) - 1:
+                    if len(invalid_ids):
+                        max_id = invalid_ids.pop(-1)
+                    else:
+                        self.logger.critical('Cleanup operation failed: All IDs where invald')
+                        return
+
+            if not self.is_valid():
+                self.logger.error('Cleanup operation failed, Instance Data is out of sync.')
+                return
 
 
-        for index in invalid_ids:
-            self.position.remove(index)
-            self.scale.remove(index)
-            self.rotation.remove(index)
-            self.instance_id.remove(index)
-            self.visibility.remove(index)
-            self.normal.remove(index)
-            self.tangent.remove(index)
-            self.u_coord.remove(index)
-            self.v_coord.remove(index)
-            self.poly_id.remove(index)
-            self.color.remove(index)
-            self.unique_id.remove(index)
-            self.np_position = np.delete(self.np_position, index, 0)
+            for index in invalid_ids:
+                self.position.remove(index)
+                self.scale.remove(index)
+                self.rotation.remove(index)
+                self.instance_id.remove(index)
+                self.visibility.remove(index)
+                self.normal.remove(index)
+                self.tangent.remove(index)
+                self.u_coord.remove(index)
+                self.v_coord.remove(index)
+                self.poly_id.remove(index)
+                self.color.remove(index)
+                self.unique_id.remove(index)
+                self.np_position = np.delete(self.np_position, index, 0)
 
 
     def __len__(self):
