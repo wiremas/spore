@@ -61,8 +61,7 @@ class SporeManager(object):
     def selection_changed(self, *args):
         """ link selection im maya to highligthing widgets in the manager """
 
-        #  print "SEL CHANGED"
-        selection = cmds.ls(sl=True, typ='sporeNode')
+        selection = cmds.ls(sl=True, typ='sporeNode', l=True)
         for geo_item, spore_items in self.wdg_tree.iteritems():
             for spore_item in spore_items:
                 if spore_item.node_name in selection:
@@ -131,12 +130,6 @@ class SporeManager(object):
                     if in_mesh.isValid():
                         return in_mesh.fullPathName()
 
-    def remove_spore(self):
-        """ remove selected spore setup(s) from the scene """
-
-        pass
-
-
 
     """ -------------------------------------------------- """
     """ slots """
@@ -146,15 +139,16 @@ class SporeManager(object):
     def add_spore(self, name):
         """ add a new spore setup to the scene """
 
-        spore_node, instancer = cmds.spore()
-        #  spore_transform = cmds.listRelatives(spore_node, p=True, f=True)[0]
-        spore_node = cmds.rename(spore_node, '{}Spore'.format(name))
-        instancer = cmds.rename(instancer, '{}SporeInstancer'.format(name))
-        cmds.select(spore_node)
+        if cmds.ls(sl=True):
+            spore_node, instancer = cmds.spore()
+            cmds.select(spore_node)
+            self.ui.clear_layout()
+            self.refresh_spore()
+            self.logger.debug('Manager created new setup: {}, {}'.format(spore_node,
+                                                                         instancer))
 
-        self.ui.clear_layout()
-        #  self.initialize_ui()
-        self.refresh_spore()
+        else:
+            self.logger.warn('Failed to create Spore. Nothing selected')
 
     @Slot(QObject)
     def item_clicked(self, widget, event):
@@ -243,9 +237,15 @@ class SporeManager(object):
                 for spore_wdg in spore_wdgs:
 
                     spore_node = spore_wdg.name
+                    print spore_node
                     if spore_wdg.is_selected and cmds.objExists(spore_node):
                         instancer = node_utils.get_instancer(spore_node)
-                        cmds.delete((spore_node, instancer))
+                        transform = cmds.listRelatives(spore_node, p=True, f=True)
+
+                        if len(cmds.listRelatives(transform, c=1)) == 1:
+                            cmds.delete((spore_node, transform[0], instancer))
+                        else:
+                            cmds.delete((spore_node, instancer))
 
                         selection.remove(spore_node)
                         cmds.select(selection)
