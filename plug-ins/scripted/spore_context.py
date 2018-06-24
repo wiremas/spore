@@ -854,7 +854,6 @@ class SporeContext(ompx.MPxContext):
         self.setImage("moveTool.xpm", ompx.MPxContext.kImage1)
 
         self.logger = logging_util.SporeLogger(__name__)
-        self.logger.info('Instanciate new Spore Context')
 
         self.state = brush_state.BrushState()
         self.instance_data = None
@@ -893,6 +892,8 @@ class SporeContext(ompx.MPxContext):
         - install mouse & key events
         - build the canvas frot drawing """
 
+        self.logger.debug('Set up Spore context')
+
         # get spore_node's inMesh and set it as target
         # note: we expect the target node to be selected when we setup the tool
         # if no sporeNode is selected we try to use the last target as fallback
@@ -910,7 +911,7 @@ class SporeContext(ompx.MPxContext):
 
             if not self.state.target or not self.state.node:
                 self.logger.error('Failed to initialize Spore Context')
-                raise RuntimeError('Failed initializing sporeTool')
+                return
 
         # fallback to old target, just pass since target is already set
         elif self.state.target and self.state.node:
@@ -953,8 +954,11 @@ class SporeContext(ompx.MPxContext):
             self._setCursor(omui.MCursor.crossHairCursor)
         else:
             self.canvas = canvas.CircularBrush(self.state)
+        self.help_display = canvas.HelpDisplay(self.state.settings['mode'])
+        self.help_display.set_visible(False)
 
     def toolOffCleanup(self):
+
         view = window_utils.active_view_wdg()
         view.removeEventFilter(self.mouse_event_filter)
         window = window_utils.maya_main_window()
@@ -964,14 +968,20 @@ class SporeContext(ompx.MPxContext):
 
         # TODO - this is only temp / eighter remove it or find a way to fix
         # brocken instance data caches inside the validation
-        self.instance_data.is_valid()
+        #  self.instance_data.is_valid()
 
-        if self.state.settings['mode'] == 'remove':
+        mode = self.state.settings['mode']
+        if mode == 'remove':
             self.instance_data.clean_up()
 
         if self.canvas:
             self.canvas.update()
             del self.canvas
+        if self.help_display:
+            self.help_display.update()
+            del self.help_display
+        else:
+            self.logger.warn('Could not delete help object from {} context'.format(mode))
 
         self.logger.info('Spore Context clean up')
 
@@ -1005,6 +1015,7 @@ class SporeContext(ompx.MPxContext):
             self.state.normal = normal
             self.state.tangent = tangent
             self.state.draw = True
+            self.help_display.set_visible(True)
 
             if not self.state.last_position:
                 self.state.last_position = position
@@ -1025,6 +1036,7 @@ class SporeContext(ompx.MPxContext):
 
         else:
             self.state.draw = False
+            self.help_display.set_visible(False)
 
         #  redraw after coursor has been move
         if self.canvas:
@@ -1098,6 +1110,7 @@ class SporeContext(ompx.MPxContext):
     @Slot()
     def leave(self):
         self.state.draw = False
+        self.help_display.set_visible(False)
         if self.canvas:
             self.canvas.update()
 

@@ -147,76 +147,65 @@ class CircularBrush(Canvas):
 
             return [shape]
 
-class DotBrush(Canvas):
-    """ Draw a circular brush around the coursor
-    based on the given brush state """
 
-    def __init__(self, brush_state):
-        super(DotBrush, self).__init__()
-        self.brush_state = brush_state
+class HelpDisplay(Canvas):
 
-    def paintEvent(self, event):
-        if hasattr(self, 'brush_state') and self.brush_state.draw:
-            painter = QPainter()
-            position = self.create_brush_dots()
-            painter.drawPoint(position)
-            #  for shape in shapes:
-            #      shape = [QPointF(point[0], point[1]) for point in shape]
-            #
-            #      path = QPainterPath()
-            #      start_pos = shape.pop(0)
-            #      path.moveTo(start_pos)
-            #      [path.lineTo(point) for point in shape]
-            #
-            #      painter.setRenderHint(painter.Antialiasing)
-            #      #  painter.setRenderHint(painter.HighQualityAnti)
-            #      painter.begin(self)
-            #
-            #      painter.setPen(QPen(Qt.yellow, 1))
-            #      painter.drawPath(path)
+    key_mapping = {'place': {'Shift': 'Drag',
+                             'Ctrl': 'Align to Stroke'},
+                   'spray': {'Shift': 'Drag',
+                             'Ctrl': 'Align to Stroke',
+                             'b': 'Mofify Radius'},
+                   'scale': {'Shift': 'Smooth Scale',
+                             'Ctrl': 'Randomize Scale'},
+                   'align': {'Shift': 'Smooth Align (Not implemented yet)',
+                             'Ctrl': 'Randomize Align'},
+                   'id': {'Ctrl': 'Pick Random'},
+                   'remove': {'Shift': 'Restore',
+                              'Ctrl': 'Random Delete'}}
 
-            painter.end()
+    def __init__(self, mode, parent=None):
+        super(HelpDisplay, self).__init__()
 
-    def create_brush_dots(self):
-        """ generate the shape of the brush based on the brush state """
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.SplashScreen | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput)
+        self.mapping = self.key_mapping[mode]
+        self.mode = mode
+        self.visible = True
+        self.build()
 
-        if self.brush_state.draw:
-            # fetch point and normal
-            pnt = om.MPoint(self.brush_state.position[0],
-                            self.brush_state.position[1],
-                            self.brush_state.position[2])
-            nrm = om.MVector(self.brush_state.normal[0],
-                            self.brush_state.normal[1],
-                            self.brush_state.normal[2])
-            tan = om.MVector(self.brush_state.tangent[0],
-                            self.brush_state.tangent[1],
-                            self.brush_state.tangent[2])
+    def build(self):
 
-            # draw dragger shapes
-            #  if self.brush_state.drag_mode:
-            pos_x, pos_y = window_utils.world_to_view(pnt)
+        self.setStyleSheet('QLabel {color: white}')
 
-            #shapes = []
-            #shapes.append([(pos_x - 15, pos_y - 15), (pos_x + 15, pos_y + 15)])
-            #shapes.append([(pos_x - 15, pos_y + 15), (pos_x + 15, pos_y - 15)])
-            return QPoint(pos_x, pos_y) #shapes
+        layout = QGridLayout()
+        self.setLayout(layout)
 
+        layout.setRowStretch(0, 10)
+        layout.setColumnStretch(3, 1)
 
-            # get point at normal and tangent
-            #  n_pnt = pnt + (nrm * self._state.radius * 0.75)
-            #  t_str = pnt + (tan * self._state.radius * 0.75)
-            #  t_end = pnt + (tan * self._state.radius)
+        key_lbl = QLabel('{} Hotkeys:'.format(self.mode.title()))
+        layout.addWidget(key_lbl, 1, 0, 1, 2)
 
-            # get circle points
-            #  theta = math.radians(360 / 20)
-            #  shape = []
-            #  for i in xrange(20 + 1):
-            #      rot = om.MQuaternion(theta * i, nrm)
-            #      rtan = tan.rotateBy(rot)
-            #      pos = pnt + (rtan * self.radius)
-            #
-            #      pos_x, pos_y = window_utils.world_to_view(pos)
-            #      shape.append((pos_x, pos_y))
-            #
-            #  return [shape]
+        position = 2
+        for key, op in self.mapping.iteritems():
 
+            key_lbl = QLabel(key)
+            layout.addWidget(key_lbl, position, 0, 1, 1)
+
+            op_lbl = QLabel(op)
+            layout.addWidget(op_lbl, position, 1, 1, 1)
+
+            position += 1
+
+        #  help_key_lbl = QLabel('h')
+        #  layout.addWidget(help_key_lbl, position, 0, 1, 1)
+        #
+        #  help_lbl = QLabel('Toggle Help')
+        #  layout.addWidget(help_lbl, position, 1, 1, 1)
+
+        layout.setRowStretch(position, 1)
+
+    def set_visible(self, visible):
+        if self.visible is not visible:
+            self.setVisible(visible)
+            self.visible = visible
+            self.update()
