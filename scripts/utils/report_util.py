@@ -1,7 +1,10 @@
 import os
 import sys
+import time
 import urllib
 import urllib2
+
+from PySide2.QtCore import QTimer
 
 import maya.cmds as cmds
 
@@ -15,8 +18,12 @@ class MailWrapper(object):
     TARGET_ADD = 'anno.schachner@gmail.com'
 
     def __init__(self):
-        log_lvl = sys._global_spore_dispatcher.spore_globals['LOG_LEVEL']
-        self.logger = logging_util.SporeLogger(__name__, log_lvl)
+        self.logger = logging_util.SporeLogger(__name__)
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.send_report)
+        self.last_msg = 0.0
+        self.msg_stack = []
 
     def submit_report(self, subject, msg):
         """ send a POST request to anonymouse.org to send a email with
@@ -32,6 +39,29 @@ class MailWrapper(object):
                    'subject': subject,
                    'text': msg}
 
+        current_time = time.time()
+
+        if self.last_msg + 60 > current_time:
+            self.msg_stack.append(payload)
+            # add some extra seconds since the qtime is not 100% accurate
+            self.timer.start(65000)
+            self.logger.warn('Can only send one message per minute. Delivery postponed for {}sec.'.format(60 * len(self.msg_stack)))
+
+        else:
+            self.send_report(payload)
+
+    def send_report(self, payload=None):
+
+        if not payload:
+            self.logger.debug('Timer triggered report')
+            if self.msg_stack:
+                payload = self.msg_stack.pop(-1)
+                self.logger.debug('Timer triggered report')
+            else:
+                self.logger.debug('No more messages to send. Time stopped')
+                self.timer.stop()
+                return
+
         handler = urllib2.HTTPHandler()
         opener = urllib2.build_opener(handler)
         data = urllib.urlencode(payload)
@@ -43,9 +73,12 @@ class MailWrapper(object):
         except urllib2.HTTPError, e:
             connection = e
 
+        self.last_msg = time.time()
+
         # check. Substitute with appropriate HTTP code.
         if connection.code == 200:
             data = connection.read()
+            self.logger.debug('Report {} delivered'.format(payload['subject']))
             print '=' * 40 + '\nThank you for submitting your report!\n' + '=' * 40
             return True
         else:
