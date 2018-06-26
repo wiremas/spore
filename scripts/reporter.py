@@ -36,6 +36,8 @@ class Reporter(object):
         self.ui.disable_report.connect(self.disable_report)
         self.ui.automatic_report.connect(self.automatic_report)
 
+        self.mail = report_util.MailWrapper()
+
     def get_log_content(self):
         """ get the content of all log files """
 
@@ -69,9 +71,7 @@ class Reporter(object):
             sys._global_spore_dispatcher.spore_globals['SENDER'] = address
 
         report = self.format_report(address, subject, msg, log)
-
-        mail = report_util.MailWrapper()
-        mail.submit_report(subject, report)
+        self.mail.submit_report(subject, report)
 
         self.ui.close()
 
@@ -106,8 +106,7 @@ class Reporter(object):
         address = sys._global_spore_dispatcher.spore_globals['SENDER']
         report = self.format_report(address, subject, '', log)
 
-        mail = report_util.MailWrapper()
-        mail.submit_report(subject, report)
+        self.mail.submit_report(subject, report)
 
     def show(self, err=None):
 
