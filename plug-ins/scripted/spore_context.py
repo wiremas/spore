@@ -913,9 +913,9 @@ class SporeContext(ompx.MPxContext):
                 self.logger.error('Failed to initialize Spore Context')
                 return
 
-        # fallback to old target, just pass since target is already set
+        # fallback to old target
         elif self.state.target and self.state.node:
-            pass
+            node_name = self.state.node
 
         # if we neither have a sporeNode selected nor have a fallback, tool init fails
         else:
