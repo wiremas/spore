@@ -25,15 +25,6 @@ import event_filter
 import brush_utils
 import logging_util
 
-#  reload(canvas)
-#  reload(mesh_utils)
-#  reload(node_utils)
-#  reload(message_utils)
-#  reload(brush_utils)
-#  reload(brush_state)
-#  reload(event_filter)
-#  reload(logging_util)
-
 
 """ -------------------------------------------------------------------- """
 """ GLOBALS """
@@ -44,7 +35,6 @@ K_TOOL_CMD_NAME="sporeToolCmd"
 K_CONTEXT_NAME="sporeContext"
 
 K_TRACKING_DICTIONARY = {}
-
 
 
 """ -------------------------------------------------------------------- """
@@ -73,11 +63,17 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.setCommandString(K_TOOL_CMD_NAME)
         K_TRACKING_DICTIONARY[ompx.asHashable(self)] = self
 
+        log_lvl = sys._global_spore_dispatcher.spore_globals['LOG_LEVEL']
+        self.logger = logging_util.SporeLogger(__name__, log_lvl)
+
         self.brush_state = None
         self.instance_data = None
         self.last_brush_position = None
 
         self.last_undo_journal = ''
+        self.last_count = 0
+        self.last_state = {}
+        self.next_redo_journal = ''
 
         self.position = om.MVectorArray()
         self.scale = om.MVectorArray()
@@ -120,22 +116,25 @@ class SporeToolCmd(ompx.MPxToolCommand):
     """ reimplemented from MPxToolCommand """
     """ -------------------------------------------------------------------- """
 
-    def doIt(self, args):
-        self.displayInfo('Calling {} from the script editor is not supported\
-                         '.format(K_TOOL_CMD_NAME))
+    def doIt(self, *args):
+        if args:
+            self.logger.error('Call the sporeToolCmd is not implemented')
+            return
 
-        return
-
-    def redoIt(self):
         flag = self.brush_state.action
+        if flag == SporeToolCmd.k_click:
+            self.last_count = len(self.instance_data)
+            self.last_state = {}
 
-        # TODO - check if there are points save if flag is drag
-
+        # PLACE / SPRAY
         if self.brush_state.settings['mode'] == 'place'\
-        or self.brush_state.settings['mode'] == 'spray': #'place':
+        or self.brush_state.settings['mode'] == 'spray'\
+        and not flag is SporeToolCmd.k_release:
             self.place_action(flag)
 
-        elif self.brush_state.settings['mode'] == 'scale': #'scale'
+        # SCALE
+        elif self.brush_state.settings['mode'] == 'scale'\
+        and not flag is SporeToolCmd.k_release:
             if self.brush_state.shift_mod: # smooth
                 self.smooth_scale_action(flag)
             elif self.brush_state.meta_mod: # randomize
@@ -143,7 +142,9 @@ class SporeToolCmd(ompx.MPxToolCommand):
             else: # scale
                 self.scale_action(flag)
 
-        elif self.brush_state.settings['mode'] == 'align': #'align'
+        # ALIGN
+        elif self.brush_state.settings['mode'] == 'align'\
+        and not flag is SporeToolCmd.k_release:
             if self.brush_state.shift_mod:
                 self.smooth_align_action(flag)
             elif self.brush_state.meta_mod:
@@ -151,10 +152,13 @@ class SporeToolCmd(ompx.MPxToolCommand):
             else:
                 self.align_action(flag)
 
+        # MOVE
         elif self.brush_state.settings['mode'] == 'move': #'move':
             self.move_action(flag)
 
-        elif self.brush_state.settings['mode'] == 'id': #'index':
+        # ID
+        elif self.brush_state.settings['mode'] == 'id'\
+        and not flag is SporeToolCmd.k_release:
             if self.brush_state.meta_mod:
                 # check min distance
                 if not self.validate_min_distance():
@@ -164,21 +168,44 @@ class SporeToolCmd(ompx.MPxToolCommand):
             else:
                 self.index_action(flag)
 
-        elif self.brush_state.settings['mode'] == 'remove':
+        # REMOVE
+        elif self.brush_state.settings['mode'] == 'remove'\
+        and not flag is SporeToolCmd.k_release:
             if self.brush_state.meta_mod:
                 # check min distance
                 if not self.validate_min_distance():
                     return
-
                 self.delete_random(flag)
             elif self.brush_state.shift_mod:
                 self.change_visibility(flag, 1)
             else:
                 self.change_visibility(flag, 0)
 
+    def redoIt(self):
+        self.logger.warn('Redo not implemented')
+        return
+
     def undoIt(self):
 
-        print 'undoIt', self.last_undo_journal
+        undo_command = self.last_undo_journal.split(' ')[2:]
+        if not undo_command:
+            self.logger.warn('No more steps to undo')
+            return
+
+        undo_mode = undo_command.pop(0)
+        if undo_mode == 'place' or undo_mode == 'spray':
+            self.undo_place_action(int(undo_command[0]), int(undo_command[1]))
+        elif undo_mode == 'scale':
+            self.undo_vector_action('scale', undo_command)
+        elif undo_mode == 'align':
+            self.undo_vector_action('rotation', undo_command)
+        elif undo_mode == 'move':
+            self.undo_vector_action('position', undo_command)
+        elif undo_mode == 'id':
+            self.undo_int_action('instance_id', undo_command)
+        elif undo_mode == 'remove':
+            self.undo_remove_action(undo_command)
+
         self.last_undo_journal = cmds.undoInfo(q=True, un=True)
 
     def isUndoable(self):
@@ -190,15 +217,35 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         command = om.MArgList()
         command.addArg(self.commandString())
+        command.addArg(self.brush_state.settings['mode'])
 
-        if self.brush_state.settings['mode'] == 'place': #'place':
-            command.addArg('place')
-            for i in xrange(self.position.length()):
-                command.addArg(self.position[i])
+        if self.brush_state.settings['mode'] == 'place'\
+        or self.brush_state.settings['mode'] == 'spray':
+            command.addArg(self.last_count)
+            command.addArg(len(self.instance_data) - 1)
 
-        if self.brush_state.settings['mode'] == 'spray': #'place':
-            command.addArg('spray')
-            command.addArg(self.position.length())
+        elif self.brush_state.settings['mode'] == 'scale'\
+        or self.brush_state.settings['mode'] == 'align'\
+        or self.brush_state.settings['mode'] == 'move'\
+        or self.brush_state.settings['mode'] == 'id':
+            for index, value in self.last_state.iteritems():
+                command.addArg(index)
+                command.addArg(value)
+
+        elif self.brush_state.settings['mode'] == 'remove':
+            for index, value in self.last_state.iteritems():
+                command.addArg(self.instance_data.position[index])
+                command.addArg(self.instance_data.scale[index])
+                command.addArg(self.instance_data.rotation[index])
+                command.addArg(self.instance_data.instance_id[index])
+                command.addArg(value) # self.instance_data.visibility[index])
+                command.addArg(self.instance_data.normal[index])
+                command.addArg(self.instance_data.tangent[index])
+                command.addArg(self.instance_data.u_coord[index])
+                command.addArg(self.instance_data.v_coord[index])
+                command.addArg(self.instance_data.poly_id[index])
+                command.addArg(self.instance_data.color[index])
+                command.addArg(self.instance_data.unique_id[index])
 
         # This call adds the command to the undo queue and sets
         # the journal string for the command.
@@ -338,6 +385,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         for i, index in enumerate(neighbour):
             rotation = self.instance_data.rotation[index]
+
+            # add to undo stack
+            if not self.last_state.has_key(index):
+                self.last_state[index] = om.MVector(rotation.x, rotation.y, rotation.z)
+
             normal = self.instance_data.normal[index]
             direction = self.get_alignment(normal)
             rotation = self.rotate_into(direction, rotation)
@@ -360,6 +412,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         for i, index in enumerate(neighbour):
             rotation = self.instance_data.rotation[index]
+
+            # add to undo stack
+            if not self.last_state.has_key(index):
+                self.last_state[index] = om.MVector(rotation.x, rotation.y, rotation.z)
+
             normal = self.instance_data.normal[index]
             #  direction = self.get_alignment(normal)
             rotation = self.rotate_into(average, rotation)
@@ -384,6 +441,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         for i, index in enumerate(neighbour):
             rotation = self.instance_data.rotation[index]
+
+            # add to undo stack
+            if not self.last_state.has_key(index):
+                self.last_state[index] = om.MVector(rotation.x, rotation.y, rotation.z)
+
             normal = self.instance_data.normal[index]
             direction = self.get_random_vector(normal)
             #  direction = self.get_alignment(normal)
@@ -393,9 +455,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         self.instance_data.set_points(neighbour, rotation=self.rotation)
         self.instance_data.set_state()
-
-
-        print 'Randomize align. Not implemented yet'
 
     """ ------------------------------------------------------- """
     """ scale """
@@ -418,6 +477,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
             factor = (factor - 1) * falloff_weight + 1
             self.scale.set(value * factor, i)
 
+            # add to undo stack
+            if not self.last_state.has_key(index):
+                self.last_state[index] = om.MVector(value.x, value.y, value.z)
+
         self.instance_data.set_points(neighbour, scale=self.scale)
         self.instance_data.set_state()
 
@@ -437,6 +500,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
         for i, index in enumerate(neighbour):
             falloff_weight = self.get_falloff_weight(self.instance_data.position[index])
             value = self.instance_data.scale[index]
+
+            # add to undo stack
+            if not self.last_state.has_key(index):
+                self.last_state[index] = om.MVector(value.x, value.y, value.z)
+
             value = [value.x, value.y, value.z]
             delta = np.subtract(average, value)
             step = np.multiply(np.multiply(delta, amount), falloff_weight)
@@ -463,6 +531,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
         for i, index in enumerate(neighbour):
             falloff_weight = self.get_falloff_weight(self.instance_data.position[index])
             value = self.instance_data.scale[index]
+
+            # add to undo stack
+            if not self.last_state.has_key(index):
+                self.last_state[index] = om.MVector(value.x, value.y, value.z)
+
             value = [value.x, value.y, value.z]
             # get rand scale, rand * 2 -1 to distribute evenly between -1 and +1
             if self.brush_state.settings['uni_scale']:
@@ -476,12 +549,43 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.instance_data.set_points(neighbour, scale=self.scale)
         self.instance_data.set_state()
 
+
     """ ------------------------------------------------------- """
     """ move """
     """ ------------------------------------------------------- """
 
     def move_action(self, flag):
-        print 'move'
+        position, normal, tangent = self.get_brush_coords()
+        radius = self.brush_state.radius
+        neighbour = self.instance_data.get_closest_points(position, radius)
+        if neighbour:
+            self.set_cache_length(len(neighbour))
+        else:
+            return
+
+        for i, index in enumerate(neighbour):
+            position = self.instance_data.position[index]
+
+            # add to undo stack
+            if not self.last_state.has_key(index):
+                self.last_state[index] = om.MVector(position)
+
+            direction = om.MVector(self.brush_state.stroke_direction[0],
+                                    self.brush_state.stroke_direction[1],
+                                    self.brush_state.stroke_direction[2])
+            weight = self.brush_state.settings['strength']
+
+            position = om.MPoint(position + direction * weight)
+            position, normal = mesh_utils.get_closest_point_and_normal(position, self.brush_state.target)
+            self.position.set(om.MVector(position), i)
+            self.normal.set(normal, i)
+
+        self.instance_data.set_points(neighbour,
+                                      position=self.position,
+                                      normal=self.normal)
+        self.instance_data.set_state()
+
+        self.instance_data.build_kd_tree()
 
     """ ------------------------------------------------------- """
     """ index """
@@ -499,8 +603,13 @@ class SporeToolCmd(ompx.MPxToolCommand):
             return
 
         for i, neighbour_id in enumerate(neighbour):
-            object_index = random.choice(self.brush_state.settings['ids'])
 
+            # add to undo stack
+            old_id = self.instance_data.instance_id[neighbour_id]
+            if not self.last_state.has_key(neighbour_id):
+                self.last_state[neighbour_id] = old_id
+
+            object_index = random.choice(self.brush_state.settings['ids'])
             self.instance_id.set(object_index, i)
 
         self.instance_data.set_points(neighbour, instance_id=self.instance_id)
@@ -524,6 +633,11 @@ class SporeToolCmd(ompx.MPxToolCommand):
             return
 
         for i in xrange(cache_len):
+
+            # add to undo stack
+            old_id = self.instance_data.instance_id[neighbour_id]
+            if not self.last_state.has_key(neighbour_id):
+                self.last_state[neighbour_id] = old_id
 
             object_index = random.choice(ids)
             index = random.choice(neighbour)
@@ -553,6 +667,12 @@ class SporeToolCmd(ompx.MPxToolCommand):
             return
 
         for i, index in enumerate(neighbour):
+
+            # add to undo stack
+            old_vis = self.instance_data.visibility[index]
+            if not self.last_state.has_key(index):
+                self.last_state[index] = old_vis
+
             self.visibility.set(visibility, i)
 
         self.instance_data.set_points(neighbour, visibility=self.visibility)
@@ -577,12 +697,126 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
             rand_id = random.randint(0, len(neighbour) - 1)
             index = neighbour.pop(rand_id)
+
+            if not self.last_state.has_key(index):
+                self.last_state[index] = 1
+
             changed_ids.append(index)
             self.visibility.set(0, i)
 
-        #  print len(changed_ids, visibility.length()
         self.instance_data.set_points(changed_ids, visibility=self.visibility)
         self.instance_data.set_state()
+
+
+
+    """ ------------------------------------------------------- """
+    """ undo """
+    """ ------------------------------------------------------- """
+
+    def undo_place_action(self, start, end):
+        """ undo the last place action
+        :param start: start index
+        :param end: end index
+        :return: """
+
+        visibility = om.MIntArray()
+        ids = range(start, end + 1)
+        [visibility.append(0) for i in ids]
+        self.instance_data.set_points(ids, visibility=visibility)
+        self.instance_data.clean_up()
+        self.instance_data.set_state()
+
+
+    def undo_vector_action(self, attr, undo_command):
+        """ undo transformation attributes.
+        scale, rotatio be undone with this method
+        :param attr: the instance data attribute that should changed
+        :type attr: string
+        :param undo_command: a list of index, x, y, z vale, repeating in this pattern
+        :type undo_command: list
+        :return: """
+
+        if not hasattr(self.instance_data, attr):
+            self.logger.error('Instance data has not attribute: {}'.format(attr))
+            return
+
+        ids = []
+        values = om.MVectorArray()
+        for i in range(len(undo_command) / 4):
+            ids.append(int(undo_command[i * 4]))
+            val_x = float(undo_command[i * 4 + 1])
+            val_y = float(undo_command[i * 4 + 2])
+            val_z = float(undo_command[i * 4 + 3])
+            values.append(om.MVector(val_x, val_y, val_z))
+
+        self.instance_data.set_points(ids, **{attr: values})
+        self.instance_data.set_state()
+
+    def undo_int_action(self, attr, undo_command):
+        """ undo the last action that modified an integer value on the
+        instance data object
+        :param attr:  the name of the attribute to undo
+        :type attr: str
+        :param undo_command: the commond built from the undo journal
+        :type undo_command: list
+        :return: """
+
+        if not hasattr(self.instance_data, attr):
+            self.logger.error('Instance data has not attribute: {}'.format(attr))
+            return
+
+        ids = []
+        values = om.MIntArray()
+        for i in range(len(undo_command) / 2):
+            ids.append(int(undo_command[i * 2]))
+            values.append(int(undo_command[i * 2 + 1]))
+
+        self.instance_data.set_points(ids, **{attr: values})
+        self.instance_data.set_state()
+
+    def undo_remove_action(self, undo_command):
+
+        # restore deleted points
+        if len(self.instance_data) < self.last_count:
+            for i in range(len(undo_command) / 24):
+                position = om.MVector(float(undo_command[i * 24]),
+                                      float(undo_command[i * 24 + 1]),
+                                      float(undo_command[i * 24 + 2]))
+                scale = om.MVector(float(undo_command[i * 24 + 3]),
+                                   float(undo_command[i * 24 + 4]),
+                                   float(undo_command[i * 24 + 5]))
+                rotation = om.MVector(float(undo_command[i * 24 + 6]),
+                                      float(undo_command[i * 24 + 7]),
+                                      float(undo_command[i * 24 + 8]))
+                instance_id = int(undo_command[i * 24 + 9])
+                visibility = int(undo_command[i * 24 + 10])
+                normal = om.MVector(float(undo_command[i * 24 + 11]),
+                                    float(undo_command[i * 24 + 12]),
+                                    float(undo_command[i * 24 + 13]))
+                tangent = om.MVector(float(undo_command[i * 24 + 14]),
+                                     float(undo_command[i * 24 + 15]),
+                                     float(undo_command[i * 24 + 16]))
+                u_coord = float(undo_command[i * 24 + 17])
+                v_coord = float(undo_command[i * 24 + 18])
+                poly_id = int(undo_command[i * 24 + 19])
+                color = om.MVector(float(undo_command[i * 24 + 20]),
+                                   float(undo_command[i * 24 + 21]),
+                                   float(undo_command[i * 24 + 22]))
+                unique_id = int(undo_command[i * 24 + 23])
+
+                self.instance_data.insert_point(unique_id, position, scale,
+                                                rotation, instance_id,
+                                                visibility, normal, tangent,
+                                                u_coord, v_coord, poly_id,
+                                                color)
+            self.instance_data.set_state()
+        # show hidden points
+        else:
+            undo = []
+            for i in range(len(undo_command) / 24):
+                undo.extend([undo_command[i * 24 + 23],
+                             undo_command[i * 24 + 10]])
+            self.undo_int_action('visibility', undo)
 
 
     """ -------------------------------------------------------------------- """
@@ -850,8 +1084,8 @@ class SporeContext(ompx.MPxContext):
 
     def __init__(self):
         ompx.MPxContext.__init__(self)
-        self._setTitleString('sporeContext')
-        self.setImage("moveTool.xpm", ompx.MPxContext.kImage1)
+        self._setTitleString(K_CONTEXT_NAME)
+        self.setImage('art3dPaint.png', ompx.MPxContext.kImage1)
 
         self.logger = logging_util.SporeLogger(__name__)
 
@@ -884,6 +1118,9 @@ class SporeContext(ompx.MPxContext):
         self.key_event_filter.shift_released.connect(self.shift_released)
         self.key_event_filter.b_pressed.connect(self.b_pressed)
         self.key_event_filter.b_released.connect(self.b_released)
+
+    def stringClassName(self):
+        return K_CONTEXT_NAME
 
     def toolOnSetup(self, event):
         """ tool setup:
@@ -1057,7 +1294,7 @@ class SporeContext(ompx.MPxContext):
             #  instanciate the tool command
             self.create_tool_command()
             if self.state.meta_mod is False or (self.state.meta_mod and self.state.shift_mod): # and self.state.shift_mod is False:
-                self.tool_cmd.redoIt()
+                self.tool_cmd.doIt()
 
 
     @Slot(QPoint)
@@ -1085,7 +1322,7 @@ class SporeContext(ompx.MPxContext):
             else:
                 state = self._get_state()
                 self.sender.drag.emit(state)
-                self.tool_cmd.redoIt()
+                self.tool_cmd.doIt()
 
 
     @Slot(QPoint)
@@ -1103,7 +1340,7 @@ class SporeContext(ompx.MPxContext):
 
         # finalize tool command
         if self.tool_cmd:
-            #  self.tool_cmd.redoIt()
+            self.tool_cmd.doIt()
             self.tool_cmd.finalize()
             self.tool_cmd = None
 
