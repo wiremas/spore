@@ -82,7 +82,7 @@ class AEsporeNodeTemplate(AETemplate):
                 cmds.button('sprayBtn', e=True, bgc=(0.366, 0.366, 0.366))
                 cmds.button('scaleBtn', e=True, bgc=(0.366, 0.366, 0.366))
                 cmds.button('alignBtn', e=True, bgc=(0.366, 0.366, 0.366))
-                #  cmds.button('moveBtn', e=True, bgc=(0.366, 0.366, 0.366))
+                cmds.button('moveBtn', e=True, bgc=(0.366, 0.366, 0.366))
                 cmds.button('idBtn', e=True, bgc=(0.366, 0.366, 0.366))
                 cmds.button('removeBtn', e=True, bgc=(0.366, 0.366, 0.366))
             except RuntimeError:
@@ -407,7 +407,7 @@ class AEsporeNodeTemplate(AETemplate):
         cmds.button('sprayBtn', l='Spray', c=pm.Callback(self.activateContext, 'spray', attr, 1))
         cmds.button('scaleBtn', l='Scale', c=pm.Callback(self.activateContext, 'scale', attr, 2))
         cmds.button('alignBtn', l='Align', c=pm.Callback(self.activateContext, 'align', attr, 3))
-        #  cmds.button('moveBtn', l='Move', c=pm.Callback(self.activateContext, 'move', attr, 4))
+        cmds.button('moveBtn', l='Move', c=pm.Callback(self.activateContext, 'move', attr, 4))
         cmds.button('idBtn', l='Id', c=pm.Callback(self.activateContext, 'id', attr, 5))
         cmds.button('removeBtn', l='Remove', c=pm.Callback(self.activateContext, 'remove', attr, 6))
         cmds.setParent('..')
@@ -418,7 +418,7 @@ class AEsporeNodeTemplate(AETemplate):
         cmds.button('sprayBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'spray', attr, 1))
         cmds.button('scaleBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'scale', attr, 2))
         cmds.button('alignBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'align', attr, 3))
-        #  cmds.button('moveBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'move', attr, 4))
+        cmds.button('moveBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'move', attr, 4))
         cmds.button('idBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'id', attr, 5))
         cmds.button('removeBtn', e=True, bgc=(0.366, 0.366, 0.366), c=pm.Callback(self.activateContext, 'remove', attr, 6))
 
@@ -434,7 +434,7 @@ class AEsporeNodeTemplate(AETemplate):
             elif ctx_mode == 3:
                 cmds.button('alignBtn', e=True, bgc=(0.148, 0.148, 0.148))
             elif ctx_mode == 4:
-                pass
+                cmds.button('moveBtn', e=True, bgc=(0.148, 0.148, 0.148))
             elif ctx_mode == 5:
                 cmds.button('idBtn', e=True, bgc=(0.148, 0.148, 0.148))
             elif ctx_mode == 6:
@@ -470,9 +470,9 @@ class AEsporeNodeTemplate(AETemplate):
                     'place':            (False, True,   False,  True,   False,  True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
                     'spray':            (True,  True,   False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
                     'scale':            (True,  False,  True,   False,  False,  False,  False,  False,  True,   False,  False,  True,   True,   False,  False,  True,   False,  p_map,  p_map),
-                    'align':            (True,  False,  True,   True,   False,  True,   False,  False,  False,  False,  False,  False,   True,  False,  False,  True,   False,  p_map,  p_map),
-                    'move':             (True,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,   True,  False,  False,  True,   False,  p_map,  p_map),
-                    'id':               (True,  True,   False,  False,  True,   False,  False,  False,  False,  False,  False,  False,   True,  False,  False,  True,   False,  p_map,  p_map),
+                    'align':            (True,  False,  True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  True,  False,  False,  True,   False,  p_map,  p_map),
+                    'move':             (True,  False,  False,  True,  False,  False,  False,  False,  False,  False,  False,  False,   False,  False,  False,  True,   False,  p_map,  p_map),
+                    'id':               (True,  True,   False,  False,  True,   False,  False,  False,  False,  False,  False,  False,  True,  False,  False,  True,   False,  p_map,  p_map),
                     'remove':           (True,  True,   False,  False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False),
                     }
 
@@ -481,7 +481,8 @@ class AEsporeNodeTemplate(AETemplate):
             self.dimControl(node_name, ctrl, not dim_ctrl[context_mode][i])
 
         # colorize button
-        buttons = ['placeBtn', 'sprayBtn', 'scaleBtn', 'alignBtn', 'idBtn', 'removeBtn']
+        buttons = ['placeBtn', 'sprayBtn', 'scaleBtn', 'alignBtn', 'moveBtn',
+                   'idBtn', 'removeBtn']
         for btn in buttons:
             cmds.button(btn, e=True, bgc=(0.366, 0.366, 0.366))
         button_name = '{}Btn'.format(context_mode)
