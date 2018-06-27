@@ -159,6 +159,7 @@ class HelpDisplay(Canvas):
                              'Ctrl': 'Randomize Scale'},
                    'align': {'Shift': 'Smooth Align (Not implemented yet)',
                              'Ctrl': 'Randomize Align'},
+                   'move': {'None': ''},
                    'id': {'Ctrl': 'Pick Random'},
                    'remove': {'Shift': 'Restore',
                               'Ctrl': 'Random Delete'}}
