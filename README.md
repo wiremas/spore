@@ -258,6 +258,12 @@ Align all instances within the given radius to the specified axis
 | Shift						| Smooth (same as align to normal)						|
 | Meta						| Randomize												|
 
+
+### Move
+
+Move all instances within the given radius along the stroke direction
+
+
 ### Id Mode
 
 Modify the objectIndex points within the radius to the specified ID.
