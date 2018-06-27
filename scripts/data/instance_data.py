@@ -286,6 +286,26 @@ class InstanceData(object):
     #      # deleting and removing them at clean up
     #      self.build_kd_tree()
 
+    def insert_point(self, index, position, scale, rotation, instance_id,
+                     visibility, normal, tangent, u_coord, v_coord, poly_id,
+                     color):
+
+        self.position.insert(position, index)
+        self.scale.insert(scale, index)
+        self.rotation.insert(rotation, index)
+        self.instance_id.insert(instance_id, index)
+        self.visibility.insert(visibility, index)
+        self.normal.insert(normal, index)
+        self.tangent.insert(tangent, index)
+        self.u_coord.insert(u_coord, index)
+        self.v_coord.insert(v_coord, index)
+        self.poly_id.insert(poly_id, index)
+        self.color.insert(color, index)
+        np.insert(self.np_position, index, [position.x,
+                                            position.y,
+                                            position.z])
+
+
     def length(self):
         # TODO - do some checking if all the array are the same length?
         return len(self)
@@ -304,7 +324,7 @@ class InstanceData(object):
         self.tree = kd_tree(self.np_position)
 
         t_result = round(time.time() - t1, 5)
-        self.logger.debug('Built KDTree ({}) for {} points in: {}s'.format(self.node_name, len(self), t_result))
+        #  self.logger.debug('Built KDTree ({}) for {} points in: {}s'.format(self.node_name, len(self), t_result))
 
     def get_scale_average(self, index):
         """ get the average scale value for the given list of indexes
@@ -380,7 +400,7 @@ class InstanceData(object):
             assert self.position.length() == len(self.np_position)
             return True
         except AssertionError:
-            self.logger.critical('InstanceData validation failed!')
+            self.logger.error('InstanceData validation failed!')
             print self.position.length()
             print self.scale.length()
             print self.instance_id.length()
