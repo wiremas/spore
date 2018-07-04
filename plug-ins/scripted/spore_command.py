@@ -10,6 +10,8 @@ return: list containing the sporeShape as first and
         the instancer as second element
 """
 
+import itertools as it
+
 import maya.cmds as cmds
 import maya.OpenMaya as om
 import maya.OpenMayaMPx as ompx
@@ -130,9 +132,11 @@ class SporeCommand(ompx.MPxCommand):
     def unique_name(self, name):
         """ make sure the given name is unique or add "1" until it is """
 
-        while cmds.objExists(name):
-            name += '1'
-        return name
+        new_name = name
+        count = it.count(1)
+        while cmds.objExists(new_name):
+            new_name = '{s}{n:d}'.format(s=name, n=next(count))
+        return new_name
 
     def parse_args(self, args):
         """ parse args """
