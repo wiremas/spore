@@ -10,7 +10,7 @@ except ImportError:
 import maya.OpenMaya as om
 
 import logging_util
-import progress_bar
+#  import progress_bar
 
 
 class GeoCache(object):
@@ -41,7 +41,7 @@ class GeoCache(object):
         self.cached = True
         self.weighted_ids = []
 
-    @progress_bar.ProgressBar('Caching Geometry...')
+    #  @progress_bar.ProgressBar('Caching Geometry...')
     def cache_geometry(self, mesh):
 
         self.flush_cache()
@@ -91,9 +91,9 @@ class GeoCache(object):
                 self.cache = (p0, p1, p2, normal, poly_index, AB, AC)
 
             # update progressbar
-            if poly_index >= num_iter:
-                self.cache_geometry.increment()
-                num_iter += num_polys / 100
+            #  if poly_index >= num_iter:
+            #      self.cache_geometry.increment()
+            #      num_iter += num_polys / 100
 
             poly_iter.next()
 
