@@ -100,12 +100,37 @@ class SporeSampler(ompx.MPxCommand):
 
         self.logger = logging_util.SporeLogger(__name__)
 
+        # emit attributes
+        self.node_name = None
+        self.mode = None
+        self.use_tex = None
+        self.num_samples = None
+        self.cell_size = None
+        self.min_radius = None
+        self.min_radius_2d = None
+        self.align_modes = None
+        self.align_id = None
+        self.strength = None
+        self.min_rot = None
+        self.max_rot = None
+        self.uni_scale = None
+        self.min_scale = None
+        self.max_scale = None
+        self.min_offset = None
+        self.max_offset = None
+        self.min_altitude = None
+        self.max_altitude = None
+        self.min_altitude_fuzz = None
+        self.max_altitude_fuzz = None
+        self.min_slope = None
+        self.max_slope = None
+        self.slope_fuzz = None
+        self.ids = None
+
     def doIt(self, args):
 
         self.parse_args(args)
-        self.redoIt()
-
-    def redoIt(self):
+        self.get_settings()
 
         # check if we can find a geo cache on the node we operate on
         # else build a new one
@@ -114,81 +139,66 @@ class SporeSampler(ompx.MPxCommand):
             if sys._global_spore_tracking_dir.has_key(obj_handle.hashCode()):
                 spore_locator = sys._global_spore_tracking_dir[obj_handle.hashCode()]
                 self.geo_cache = spore_locator.geo_cache
-                instance_data = spore_locator._state
+                self.instance_data = spore_locator._state
             else:
                 raise RuntimeError('Could not link to spore node')
         else:
             raise RuntimeError('There is no sporeNode in the scene')
 
-        # get sample settings from the spore node
-        # shouldn use maya commands here but i was lazy
-        node_name = om.MFnDependencyNode(self.target).name()
-        mode = cmds.getAttr('{}.emitType'.format(node_name))
-        use_tex = cmds.getAttr('{}.emitFromTexture'.format(node_name))
-        num_samples = cmds.getAttr('{}.numSamples'.format(node_name))
-        cell_size = cmds.getAttr('{}.cellSize'.format(node_name))
-        min_radius = cmds.getAttr('{}.minRadius'.format(node_name))
-        min_radius_2d = cmds.getAttr('{}.minRadius2d'.format(node_name))
-        align_modes = ['normal', 'world', 'object', 'stroke']
-        align_id = cmds.getAttr('{}.alignTo'.format(node_name))
-        strength = cmds.getAttr('{}.strength'.format(node_name))
-        min_rot = cmds.getAttr('{}.minRotation'.format(node_name))[0]
-        max_rot = cmds.getAttr('{}.maxRotation'.format(node_name))[0]
-        uni_scale = cmds.getAttr('{}.uniformScale'.format(node_name))
-        min_scale = cmds.getAttr('{}.minScale'.format(node_name))[0]
-        max_scale = cmds.getAttr('{}.maxScale'.format(node_name))[0]
-        scale_factor = cmds.getAttr('{}.scaleFactor'.format(node_name))
-        scale_amount = cmds.getAttr('{}.scaleAmount'.format(node_name))
-        min_offset = cmds.getAttr('{}.minOffset'.format(node_name))
-        max_offset = cmds.getAttr('{}.maxOffset'.format(node_name))
-        min_altitude = cmds.getAttr('{}.minAltitude'.format(node_name))
-        max_altitude = cmds.getAttr('{}.maxAltitude'.format(node_name))
-        min_altitude_fuzz = cmds.getAttr('{}.minAltitudeFuzz'.format(node_name))
-        max_altitude_fuzz = cmds.getAttr('{}.maxAltitudeFuzz'.format(node_name))
-        min_slope = cmds.getAttr('{}.minSlope'.format(node_name))
-        max_slope = cmds.getAttr('{}.maxSlope'.format(node_name))
-        slope_fuzz = cmds.getAttr('{}.slopeFuzz'.format(node_name))
-        sel = cmds.textScrollList('instanceList', q=True, si=True)
-        seed = cmds.getAttr('{}.seed'.format(node_name))
-        if sel:
-            object_index = [int(s.split(' ')[0].strip('[]:')) for s in sel]
-        else:
-            elements = cmds.textScrollList('instanceList', q=True, ai=True)
-            if not elements:
-                raise RuntimeError('No instance geometry selected')
+        self.initialize_sampling()
+        self.initialize_filtering()
 
-            object_index = [int(e.split(' ')[0].strip('[]:')) for e in elements]
-        ids = object_index
+        self.redoIt()
 
-        # set the random seed and initialize the Points object
-        self.set_seed(seed)
+    def redoIt(self):
+
+        self.append_points()
+
+        #  ompx.MPxCommand.clearResult()
+        #  ompx.MPxCommand.setResult(['foo', 'bar', 1, 2,])
+
+    def undoIt(self):
+        visibility = om.MIntArray()
+        print "UNDO", self.undo_range, len(self.instance_data)
+        for i in range(*self.undo_range):
+            self.instance_data.visibility.set(0, i)
+            #  visibility.append(0)
+
+        #  print "UNDO", len(range(*self.undo_range)), visibility.length()
+        #  self.instance_data.set_points(range(*self.undo_range),
+        #                                visibility=visibility)
+        self.instance_data.clean_up()
+        self.instance_data.set_state()
+
+
+
+    def isUndoable(self):
+        return True
+
+    def initialize_sampling(self):
         self.point_data = Points()
 
-        t1 = time.time()
-
-
-
         # choose sample operation
-        if mode == 0: #'random':
-            self.random_sampling(num_samples)
+        if self.mode == 0: #'random':
+            self.random_sampling(self.num_samples)
 
-        elif mode == 1: #'jitter':
-            self.random_sampling(num_samples)
-            grid_partition = self.voxelize(cell_size)
+        elif self.mode == 1: #'jitter':
+            self.random_sampling(self.num_samples)
+            grid_partition = self.voxelize(self.cell_size)
             valid_points = self.grid_sampling(grid_partition)
 
-        elif mode == 2: #'poisson3d':
-            self.random_sampling(num_samples)
-            cell_size = min_radius / math.sqrt(3)
-            grid_partition = self.voxelize(cell_size)
-            valid_points = self.disk_sampling_3d(min_radius, grid_partition, cell_size)
+        elif self.mode == 2: #'poisson3d':
+            self.random_sampling(self.num_samples)
+            self.cell_size = self.min_radius / math.sqrt(3)
+            grid_partition = self.voxelize(self.cell_size)
+            valid_points = self.disk_sampling_3d(self.min_radius, grid_partition, self.cell_size)
 
-        elif mode == 3: #'poisson2d':
+        elif self.mode == 3: #'poisson2d':
             self.geo_cache.create_uv_lookup()
-            self.disk_sampling_2d(min_radius_2d)
+            self.disk_sampling_2d(self.min_radius_2d)
 
         # get sampled points from disk or grid sampling
-        if mode == 1 or mode == 2:
+        if self.mode == 1 or self.mode == 2:
             point_data = Points()
             point_data.set_length(len(valid_points))
             for i, index in enumerate(valid_points):
@@ -201,10 +211,11 @@ class SporeSampler(ompx.MPxCommand):
 
             self.point_data = point_data
 
+    def initialize_filtering(self):
         # texture filter
-        if use_tex:
+        if self.use_tex:
             try:
-                texture = cmds.listConnections('{}.emitTexture'.format(node_name))[0]
+                texture = cmds.listConnections('{}.emitTexture'.format(self.node_name))[0]
             except RuntimeError:
                 texture = None
 
@@ -212,26 +223,28 @@ class SporeSampler(ompx.MPxCommand):
             self.texture_filter(texture, 0) # TODO - Filter size
 
         # altitude filter
-        if min_altitude != 0 or max_altitude != 1:
-            self.altitude_filter(min_altitude, max_altitude, min_altitude_fuzz, max_altitude_fuzz)
+        if self.min_altitude != 0 or self.max_altitude != 1:
+            self.altitude_filter(self.min_altitude, self.max_altitude, self.min_altitude_fuzz, self.max_altitude_fuzz)
 
         # slope filter
-        if min_slope != 0 or max_slope != 180:
-            self.slope_filter(min_slope, max_slope, slope_fuzz)
+        if self.min_slope != 0 or self.max_slope != 180:
+            self.slope_filter(self.min_slope, self.max_slope, self.slope_fuzz)
+
+    def append_points(self):
 
         # get final rotation, scale and position values
         # append the sampled points to the instance data object
-        old_len = len(instance_data)
-        instance_data.set_length(old_len + len(self.point_data))
+        old_len = len(self.instance_data)
+        self.instance_data.set_length(old_len + len(self.point_data))
         for i, (position, normal, poly_id, u_coord, v_coord) in enumerate(self.point_data):
             position = om.MPoint(position[0], position[1], position[2])
             normal = om.MVector(normal[0], normal[1], normal[2])
-            direction = self.get_alignment(align_modes[align_id], normal)
-            rotation = self.get_rotation(direction, strength, min_rot, max_rot)
-            scale = self.get_scale(min_scale, max_scale, uni_scale)
-            position = self.get_offset(position, min_offset, max_offset, normal)
+            direction = self.get_alignment(self.align_modes[self.align_id], normal)
+            rotation = self.get_rotation(direction, self.strength, self.min_rot, self.max_rot)
+            scale = self.get_scale(self.min_scale, self.max_scale, self.uni_scale)
+            position = self.get_offset(position, self.min_offset, self.max_offset, normal)
             tangent = mesh_utils.get_tangent(normal)
-            instance_id = random.choice(ids)
+            instance_id = random.choice(self.ids)
             index = old_len + i
 
             if not u_coord:
@@ -240,7 +253,7 @@ class SporeSampler(ompx.MPxCommand):
                 v_coord = 0
 
             # set points
-            instance_data.set_point(index,
+            self.instance_data.set_point(index,
                                     om.MVector(position),
                                     scale,
                                     rotation,
@@ -253,10 +266,58 @@ class SporeSampler(ompx.MPxCommand):
                                     poly_id,
                                     om.MVector(0, 0, 0))
 
-        instance_data.set_state()
+        self.instance_data.set_state()
 
-        t_result = time.time() - t1
-        self.logger.debug('Sampling {} points in mode {} took {}s.'.format(i+1, mode, t_result))
+        self.undo_range = (old_len, len(self.instance_data))
+        print 'APPEND', self.undo_range
+
+        #  t_result = time.time() - t1
+        #  self.logger.debug('Sampling {} points in self.mode {} took {}s.'.format(i+1, self.mode, t_result))
+
+
+    def get_settings(self):
+        """ get emit attributes from node """
+
+        # get sample settings from the spore node
+        # shouldn use maya commands here but i was lazy
+        self.node_name = om.MFnDependencyNode(self.target).name()
+        self.mode = cmds.getAttr('{}.emitType'.format(self.node_name))
+        self.use_tex = cmds.getAttr('{}.emitFromTexture'.format(self.node_name))
+        self.num_samples = cmds.getAttr('{}.numSamples'.format(self.node_name))
+        self.cell_size = cmds.getAttr('{}.cellSize'.format(self.node_name))
+        self.min_radius = cmds.getAttr('{}.minRadius'.format(self.node_name))
+        self.min_radius_2d = cmds.getAttr('{}.minRadius2d'.format(self.node_name))
+        self.align_modes = ['normal', 'world', 'object', 'stroke']
+        self.align_id = cmds.getAttr('{}.alignTo'.format(self.node_name))
+        self.strength = cmds.getAttr('{}.strength'.format(self.node_name))
+        self.min_rot = cmds.getAttr('{}.minRotation'.format(self.node_name))[0]
+        self.max_rot = cmds.getAttr('{}.maxRotation'.format(self.node_name))[0]
+        self.uni_scale = cmds.getAttr('{}.uniformScale'.format(self.node_name))
+        self.min_scale = cmds.getAttr('{}.minScale'.format(self.node_name))[0]
+        self.max_scale = cmds.getAttr('{}.maxScale'.format(self.node_name))[0]
+        self.min_offset = cmds.getAttr('{}.minOffset'.format(self.node_name))
+        self.max_offset = cmds.getAttr('{}.maxOffset'.format(self.node_name))
+        self.min_altitude = cmds.getAttr('{}.minAltitude'.format(self.node_name))
+        self.max_altitude = cmds.getAttr('{}.maxAltitude'.format(self.node_name))
+        self.min_altitude_fuzz = cmds.getAttr('{}.minAltitudeFuzz'.format(self.node_name))
+        self.max_altitude_fuzz = cmds.getAttr('{}.maxAltitudeFuzz'.format(self.node_name))
+        self.min_slope = cmds.getAttr('{}.minSlope'.format(self.node_name))
+        self.max_slope = cmds.getAttr('{}.maxSlope'.format(self.node_name))
+        self.slope_fuzz = cmds.getAttr('{}.slopeFuzz'.format(self.node_name))
+        sel = cmds.textScrollList('instanceList', q=True, si=True)
+        seed = cmds.getAttr('{}.seed'.format(self.node_name))
+        if sel:
+            object_index = [int(s.split(' ')[0].strip('[]:')) for s in sel]
+        else:
+            elements = cmds.textScrollList('instanceList', q=True, ai=True)
+            if not elements:
+                raise RuntimeError('No instance geometry selected')
+
+            object_index = [int(e.split(' ')[0].strip('[]:')) for e in elements]
+        self.ids = object_index
+
+        # set the random seed and initialize the Points object
+        self.set_seed(seed)
 
     def set_seed(self, seed):
         """ set the random seed for sampling. if the given seed is -1
