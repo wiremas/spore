@@ -1,3 +1,4 @@
+import os
 import sys
 
 import maya.mel as mel
@@ -20,12 +21,13 @@ from scripted import spore_context
 from scripted import spore_command
 from scripted import spore_sampler
 
-reload(spore_node)
-reload(spore_context)
-reload(spore_command)
-reload(spore_sampler)
-reload(AEsporeNodeTemplate)
-mel.eval('refreshEditorTemplates;')
+if os.environ.get('SPORE_DEV_MODE', 0) == 1:
+    reload(spore_node)
+    reload(spore_context)
+    reload(spore_command)
+    reload(spore_sampler)
+    reload(AEsporeNodeTemplate)
+    mel.eval('refreshEditorTemplates;')
 
 
 def initializePlugin(mobject):
