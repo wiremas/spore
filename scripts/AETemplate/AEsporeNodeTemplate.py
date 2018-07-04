@@ -471,7 +471,7 @@ class AEsporeNodeTemplate(AETemplate):
                     'spray':            (True,  True,   False,  True,   True,   True,   True,   True,   True,   True,   True,   False,  False,  True,   True,   True,   p_map,  p_map,  p_map),
                     'scale':            (True,  False,  True,   False,  False,  False,  False,  False,  True,   False,  False,  True,   True,   False,  False,  True,   False,  p_map,  p_map),
                     'align':            (True,  False,  True,   True,   False,  True,   False,  False,  False,  False,  False,  False,  True,  False,  False,  True,   False,  p_map,  p_map),
-                    'move':             (True,  False,  False,  True,  False,  False,  False,  False,  False,  False,  False,  False,   False,  False,  False,  True,   False,  p_map,  p_map),
+                    'move':             (True,  False,  True,   True,   False,  False,  False,  False,  False,  False,  False,  False,   False,  False,  False,  True,   False,  p_map,  p_map),
                     'id':               (True,  True,   False,  False,  True,   False,  False,  False,  False,  False,  False,  False,  True,  False,  False,  True,   False,  p_map,  p_map),
                     'remove':           (True,  True,   False,  False,  True,   False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False,  False),
                     }
