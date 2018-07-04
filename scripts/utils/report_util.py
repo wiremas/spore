@@ -45,7 +45,7 @@ class MailWrapper(object):
             self.msg_stack.append(payload)
             # add some extra seconds since the qtime is not 100% accurate
             self.timer.start(65000)
-            self.logger.warn('Can only send one message per minute. Delivery postponed for {}sec.'.format(60 * len(self.msg_stack)))
+            self.logger.warn('Only one message per minute. Delivery postponed for {}sec.'.format(60 * len(self.msg_stack)))
 
         else:
             self.send_report(payload)
