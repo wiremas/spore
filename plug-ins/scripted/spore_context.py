@@ -574,8 +574,9 @@ class SporeToolCmd(ompx.MPxToolCommand):
                                     self.brush_state.stroke_direction[1],
                                     self.brush_state.stroke_direction[2])
             weight = self.brush_state.settings['strength']
+            falloff = self.get_falloff_weight(position)
 
-            position = om.MPoint(position + direction * weight)
+            position = om.MPoint(position + direction * weight * falloff)
             position, normal = mesh_utils.get_closest_point_and_normal(position, self.brush_state.target)
             self.position.set(om.MVector(position), i)
             self.normal.set(normal, i)
@@ -809,6 +810,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
                                                 visibility, normal, tangent,
                                                 u_coord, v_coord, poly_id,
                                                 color)
+            self.instance_data.update_unique_id()
             self.instance_data.set_state()
         # show hidden points
         else:
@@ -1264,12 +1266,12 @@ class SporeContext(ompx.MPxContext):
                 stroke_dir = pos - last_pos
 
                 # stabilize by taking only vectors with a certain length
-                if stroke_dir.length() >= self.state.radius * 0.01:
+                if stroke_dir.length() >= self.state.radius * 0.10:
                     self.state.stroke_direction = (stroke_dir[0],
-                                                stroke_dir[1],
-                                                stroke_dir[2])
+                                                   stroke_dir[1],
+                                                   stroke_dir[2])
 
-                self.state.last_position = position
+                    self.state.last_position = position
 
         else:
             self.state.draw = False
