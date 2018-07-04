@@ -159,14 +159,10 @@ class SporeSampler(ompx.MPxCommand):
 
     def undoIt(self):
         visibility = om.MIntArray()
-        print "UNDO", self.undo_range, len(self.instance_data)
         for i in range(*self.undo_range):
             self.instance_data.visibility.set(0, i)
             #  visibility.append(0)
 
-        #  print "UNDO", len(range(*self.undo_range)), visibility.length()
-        #  self.instance_data.set_points(range(*self.undo_range),
-        #                                visibility=visibility)
         self.instance_data.clean_up()
         self.instance_data.set_state()
 
@@ -269,7 +265,6 @@ class SporeSampler(ompx.MPxCommand):
         self.instance_data.set_state()
 
         self.undo_range = (old_len, len(self.instance_data))
-        print 'APPEND', self.undo_range
 
         #  t_result = time.time() - t1
         #  self.logger.debug('Sampling {} points in self.mode {} took {}s.'.format(i+1, self.mode, t_result))
@@ -716,7 +711,6 @@ class SporeSampler(ompx.MPxCommand):
             if val < 0 or val > 1:
                 val = max(min(1, val), 0)
 
-            print val
             if val ** (1/gamma) > random.random():
                 invalid_ids.append(i)
 
