@@ -9,13 +9,13 @@ import sys
 import json
 from logging import DEBUG, INFO, WARN, ERROR
 
+import maya.mel as mel
 import pymel.core as pm
 import maya.cmds as cmds
 import maya.utils as utils
 import maya.OpenMaya as om
 
 import logging_util
-
 import manager
 import settings
 import reporter
@@ -29,21 +29,24 @@ def global_reload():
 
     import inspect
 
-    scripts_dir = os.path.dirname(__file__)
-    for key, module in sys.modules.iteritems():
+    windowed = mel.eval('$temp1=$gMainWindow')
+    if windowed:
+        scripts_dir = os.path.dirname(__file__)
+        for key, module in sys.modules.iteritems():
 
-        try:
-            module_path = inspect.getfile(module)
-        except TypeError:
-            continue
+            try:
+                module_path = inspect.getfile(module)
+            except TypeError:
+                continue
 
-        if module_path == __file__:
-            continue
+            if module_path == __file__:
+                continue
 
-        if module_path.startswith(scripts_dir):
-            reload(module)
+            if module_path.startswith(scripts_dir):
+                reload(module)
 
-global_reload()
+if os.environ.get('SPORE_DEV_MODE', 0) == 1:
+    global_reload()
 
 
 class GlobalSporeDispatcher(object):
@@ -56,8 +59,11 @@ class GlobalSporeDispatcher(object):
         # initialize global services
         self.spore_globals = settings.SporeGlobals()
 
-        self.spore_manager = manager.SporeManager()
-        self.spore_reporter = reporter.Reporter()
+        # initialize ui only in gui mode
+        windowed = mel.eval('$temp1=$gMainWindow')
+        if windowed:
+            self.spore_manager = manager.SporeManager()
+            self.spore_reporter = reporter.Reporter()
 
         #  self.spore_globals = self.parse_prefs()
         self.logger = self.get_logger()
@@ -103,6 +109,10 @@ class GlobalSporeDispatcher(object):
         pm.menuItem(l='Spore Globals', c='import sys;sys._global_spore_dispatcher.spore_globals.show()', parent=menu)
         pm.menuItem(l='Spore Reporter', c='import sys;sys._global_spore_dispatcher.spore_reporter.show()', parent=menu)
         pm.menuItem(l='Help', c='print help', parent=menu)
+
+        if os.environ.get('SPORE_DEV_MODE', 0) == 1:
+            pm.menuItem(l='Run tests', c='import test_util;test_util.run_tests_from_maya', parent=menu)
+
         return menu
 
     def remove_menu(self):

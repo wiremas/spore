@@ -2,8 +2,11 @@ import os
 import sys
 import json
 from logging import WARN
+import traceback
 
 from PySide2.QtCore import QObject, Slot
+
+import maya.mel as mel
 
 import settings_ui
 import logging_util
@@ -17,17 +20,21 @@ class SporeGlobals(QObject):
                      'LOG_LEVEL': WARN, # Set the log level for spore
                      'AUTOMATIC_REPORT': False, # Submit reports automatically
                      'REPORT': True, # Enable/Disabel reporting
-                     'SENDER': ' ' # Store sender email address
+                     'SENDER': ' ', # Store sender email address
                      }
 
     def __init__(self):
 
-        self.ui = settings_ui.SettingsUI()
-        self.ui.save_prefs.connect(self.dump_prefs)
-
+        # initialize ui only in gui mode
+        windowed = mel.eval('$temp1=$gMainWindow')
+        if windowed:
+            self.ui = settings_ui.SettingsUI()
+            self.ui.save_prefs.connect(self.dump_prefs)
         self.spore_globals = self.parse_prefs()
+        if windowed:
+            self.fill_prefs_ui()
+
         self.logger = logging_util.SporeLogger(__name__, self['LOG_LEVEL'])
-        self.fill_prefs_ui()
 
     def __getitem__(self, attr):
 
