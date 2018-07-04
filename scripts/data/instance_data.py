@@ -191,6 +191,13 @@ class InstanceData(object):
             self.logger.error('Could not set points: Array length does not match'.format(self.node_name))
             return
 
+        if index:
+            index = sorted(index)
+            if index[-1] >= len(self):
+                self.set_length(index[-1])
+        else:
+            return
+
         # set points
         for i in xrange(length):
             if position:
@@ -217,8 +224,9 @@ class InstanceData(object):
             if poly_id:
                 self.poly_id.set(poly_id[i], index[i])
             if color:
-                assert len(index) == color.length()
                 self.color.set(color[i], index[i])
+
+            self.unique_id.set(index[i], index[i])
 
     def set_length(self, length):
         """ set the instance data arrays to the given length
@@ -240,8 +248,8 @@ class InstanceData(object):
         self.v_coord.setLength(length)
         self.poly_id.setLength(length)
         self.color.setLength(length)
+        self.unique_id.setLength(length)
         self.np_position.resize(length, 3, refcheck=False)
-        #  print self.np_position
 
     def set_point(self, index, position, scale, rotation, instance_id,
                   visibility, normal, tangent, u_coord, v_coord, poly_id, color):
@@ -257,34 +265,12 @@ class InstanceData(object):
         self.visibility.set(visibility, index)
         self.normal.set(normal, index)
         self.tangent.set(tangent, index)
-        self.u_coord.set(u_coord, index) # TODO - chekci if uvs are set correctly
+        self.u_coord.set(u_coord, index)
         self.v_coord.set(v_coord, index)
         self.poly_id.set(poly_id, index)
         self.color.set(color, index)
+        self.unique_id.set(index, index)
         self.np_position[index] = [position.x, position.y, position.z]
-
-    #  def delete_points(self, index):
-    #      index = sorted(index, reverse=True)
-    #      print index, len(index), self.position.length()
-    #      for i in index:
-    #          self.position.remove(i)
-    #          self.np_position = np.delete(self.np_position, i, 0)
-    #          self.scale.remove(i)
-    #          self.rotation.remove(i)
-    #          self.instance_id.remove(i)
-    #          self.visibility.remove(i)
-    #          self.normal.remove(i)
-    #          self.tangent.remove(i)
-    #          self.u_coord.remove(i)
-    #          self.v_coord.remove(i)
-    #          self.poly_id.remove(i)
-    #          self.color.remove(i)
-    #
-    #      print self.position.length(), len(self.np_position)
-    #      # TODO - a bit unfortunate but we have to rebuild our kd tree after
-    #      # deleteing points / an alternative would be to hide object while
-    #      # deleting and removing them at clean up
-    #      self.build_kd_tree()
 
     def insert_point(self, index, position, scale, rotation, instance_id,
                      visibility, normal, tangent, u_coord, v_coord, poly_id,
@@ -301,10 +287,17 @@ class InstanceData(object):
         self.v_coord.insert(v_coord, index)
         self.poly_id.insert(poly_id, index)
         self.color.insert(color, index)
+        self.unique_id.insert(index, index)
         np.insert(self.np_position, index, [position.x,
                                             position.y,
                                             position.z])
 
+    def update_unique_id(self):
+        """ make sure each point has a unique id.
+        this method should be called after inserting or deleting points """
+
+        for i in xrange(len(self) - 1):
+            self.unique_id[i] = i
 
     def length(self):
         # TODO - do some checking if all the array are the same length?
@@ -397,6 +390,7 @@ class InstanceData(object):
             assert self.position.length() == self.v_coord.length()
             assert self.position.length() == self.poly_id.length()
             assert self.position.length() == self.color.length()
+            assert self.position.length() == self.unique_id.length()
             assert self.position.length() == len(self.np_position)
             return True
         except AssertionError:
@@ -411,6 +405,7 @@ class InstanceData(object):
             print self.v_coord.length()
             print self.poly_id.length()
             print self.color.length()
+            print self.unique_id.length()
             print len(self.np_position)
             return False
             # TODO - try to repair
@@ -432,6 +427,7 @@ class InstanceData(object):
 
     def clear(self):
         """ remove all points from the object """
+
         [self.visibility.set(0, i) for i in xrange(self.visibility.length())]
         self.clean_up()
         self.set_state()
@@ -461,7 +457,6 @@ class InstanceData(object):
                 self.logger.error('Cleanup operation failed, Instance Data is out of sync.')
                 return
 
-
             for index in invalid_ids:
                 self.position.remove(index)
                 self.scale.remove(index)
@@ -476,6 +471,8 @@ class InstanceData(object):
                 self.color.remove(index)
                 self.unique_id.remove(index)
                 self.np_position = np.delete(self.np_position, index, 0)
+
+            self.update_unique_id()
 
 
     def __len__(self):
