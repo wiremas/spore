@@ -45,7 +45,8 @@ def global_reload():
             if module_path.startswith(scripts_dir):
                 reload(module)
 
-if os.environ.get('SPORE_DEV_MODE', 0) == 1:
+if os.environ.get('SPORE_DEV_MODE', '0') == '1':
+    print 'DEVMODE: RELOAD ALL'.center(80)
     global_reload()
 
 
@@ -110,7 +111,7 @@ class GlobalSporeDispatcher(object):
         pm.menuItem(l='Spore Reporter', c='import sys;sys._global_spore_dispatcher.spore_reporter.show()', parent=menu)
         pm.menuItem(l='Help', c='print help', parent=menu)
 
-        if os.environ.get('SPORE_DEV_MODE', 0) == 1:
+        if os.environ.get('SPORE_DEV_MODE', '0') == '1':
             pm.menuItem(l='Run tests', c='import test_util;test_util.run_tests_from_maya', parent=menu)
 
         return menu
