@@ -68,12 +68,8 @@ def remove_read_only(func, path, exc):
 
 def main():
     parser = argparse.ArgumentParser(description='Runs unit tests for a Maya module')
-    parser.add_argument('-m', '--maya',
-                        help='Maya version',
-                        type=int,
+    parser.add_argument('-m', '--maya', help='Maya version', type=int,
                         default=2018)
-    #  parser.add_argument('-mad', '--maya-app-dir',
-    #                      help='Just create a clean MAYA_APP_DIR and exit')
     pargs = parser.parse_args()
 
     mayaunittest = os.path.join(SPORE_ROOT_DIR, 'scripts', 'utils', 'test_util.py')
@@ -91,8 +87,6 @@ def main():
     os.environ['MAYA_SCRIPT_PATH'] = ''
     os.environ['MAYA_PLUG_IN_PATH'] = os.path.join(SPORE_ROOT_DIR, 'plug-ins')
     os.environ['MAYA_MODULE_PATH'] = SPORE_ROOT_DIR
-
-    print cmd
 
     try:
         subprocess.check_call(cmd)
