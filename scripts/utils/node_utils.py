@@ -7,21 +7,6 @@ import math
 import maya.OpenMaya as om
 
 
-
-def getFullDagPath(mObject):
-    """ return the full DAG path of an mObject """
-
-    dagFn = om.MFnDagNode(mObject)
-    return dagFn.fullPathName()
-
-
-def getPartialDagPath(mObject):
-    """ return the partial DAG path of an mObject"""
-
-    dagFn = om.MFnDagNode(mObject)
-    return dagFn.partialPathName()
-
-
 def get_dynamic_attributes(mObject):
     """ return all dynamic attributes of a node """
 
@@ -128,7 +113,6 @@ def get_instanced_geo(spore_node):
             instancer_node = dg_node_fn.name()
 
     return instance_geo
-
 
 def get_instancer(spore_node, as_string=True):
     """ return the instancer node connected to a given spore node
