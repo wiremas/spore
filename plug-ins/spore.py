@@ -22,7 +22,6 @@ from scripted import spore_command
 from scripted import spore_sampler
 
 if os.environ.get('SPORE_DEV_MODE', '0') == '1':
-    print 'RELOAD PLUGINS'
     reload(spore_node)
     reload(spore_context)
     reload(spore_command)
