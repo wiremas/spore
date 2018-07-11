@@ -46,7 +46,6 @@ def global_reload():
                 reload(module)
 
 if os.environ.get('SPORE_DEV_MODE', '0') == '1':
-    print 'DEVMODE: RELOAD ALL'.center(80)
     global_reload()
 
 
