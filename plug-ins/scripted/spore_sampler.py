@@ -215,8 +215,9 @@ class SporeSampler(ompx.MPxCommand):
             except RuntimeError:
                 texture = None
 
-            self.evaluate_uvs()
-            self.texture_filter(texture, 0) # TODO - Filter size
+            if texture:
+                self.evaluate_uvs()
+                self.texture_filter(texture, 0) # TODO - Filter size
 
         # altitude filter
         if self.min_altitude != 0 or self.max_altitude != 1:
@@ -440,7 +441,6 @@ class SporeSampler(ompx.MPxCommand):
                     continue
 
                 valid = True
-                #  print 'sample at cell:', key, 'point id: ', point_index, 'at: ', new_p_x, new_p_y, new_p_z, round(point.x,3), round(point.y,3), round(point.z,3)
                 # check against all nearby cells if the sample is valid
                 for x in xrange(new_p_x - 1, new_p_x + 2):
                     for y in xrange(new_p_y - 1, new_p_y + 2):
@@ -685,13 +685,13 @@ class SporeSampler(ompx.MPxCommand):
         in_mesh = node_utils.get_connected_in_mesh(self.target, False)
 
         for i, (position, normal, poly_id, u_coord, v_coord) in enumerate(self.point_data):
-            if not u_coord and not v_coord:
+            #  if not u_coord and not v_coord:
 
-                pos = om.MPoint(position[0], position[1], position[2])
-                u_coord, v_coord = mesh_utils.get_uv_at_point(in_mesh, pos)
+            pos = om.MPoint(position[0], position[1], position[2])
+            u_coord, v_coord = mesh_utils.get_uv_at_point(in_mesh, pos)
 
-                self.point_data.u_coord[i] = u_coord
-                self.point_data.v_coord[i] = v_coord
+            self.point_data.u_coord[i] = u_coord
+            self.point_data.v_coord[i] = v_coord
 
     """ ---------------------------------------------------------------- """
     """ filtering """
@@ -711,7 +711,7 @@ class SporeSampler(ompx.MPxCommand):
             if val < 0 or val > 1:
                 val = max(min(1, val), 0)
 
-            if val ** (1/gamma) > random.random():
+            if val ** (1/gamma) < random.random():
                 invalid_ids.append(i)
 
         invalid_ids = sorted(invalid_ids, reverse=True)
@@ -766,11 +766,6 @@ class SporeSampler(ompx.MPxCommand):
 
 
         pass
-
-
-
-
-
 
     """ ---------------------------------------------------------------- """
     """ transformation utils """
@@ -833,9 +828,6 @@ class SporeSampler(ompx.MPxCommand):
     def instance_id(self, ids):
         return random.choice(ids)
 
-
-
-
     def parse_args(self, args):
         """ parse command arguments """
 
@@ -861,29 +853,41 @@ class SporeSampler(ompx.MPxCommand):
             found = False
             node = om.MObject()
             selection.getDependNode(0, node)
-            if node.hasFn(om.MFn.kDependencyNode):
-                dg_fn = om.MFnDependencyNode(node)
-                if dg_fn.typeName() == 'sporeNode':
+
+            if node.hasFn(om.MFn.kDagNode):
+                dag_fn = om.MFnDagNode(node)
+                if dag_fn.typeName() == 'sporeNode':
                     self.target = node
-
-                    if not self.sample_type:
-                        type_plug = dg_fn.findPlug('emitType')
-                        self.sample_type = mode_map[type_plug.asShort()]
-                    if not self.num_samples:
-                        num_plug = dg_fn.findPlug('numSamples')
-                        self.num_samples = num_plug.asInt()
-                    if not self.cell_size:
-                        cell_plug = dg_fn.findPlug('cellSize')
-                        self.cell_size = num_plug.asDouble()
-                    if not self.min_distance:
-                        radius_plug = dg_fn.findPlug('minRadius')
-                        self.cell_size = radius_plug.asDouble()
-
                     found = True
 
-            if not found:
-                raise RuntimeError('The sample command only works on sporeNodes')
+                if dag_fn.typeName() == 'transform':
+                    dag_path = om.MDagPath()
+                    om.MDagPath.getAPathTo(node, dag_path)
+                    try:
+                        dag_path.extendToShape()
+                    except:
+                        raise RuntimeError('{} node has multiple shapes'.format(dag_path.fullPathName()))
 
+                    dag_fn = om.MFnDagNode(dag_path)
+                    self.target = dag_path.node()
+                    found = True
+
+            if found:
+                if not self.sample_type:
+                    type_plug = dag_fn.findPlug('emitType')
+                    self.sample_type = mode_map[type_plug.asShort()]
+                if not self.num_samples:
+                    num_plug = dag_fn.findPlug('numSamples')
+                    self.num_samples = num_plug.asInt()
+                if not self.cell_size:
+                    cell_plug = dag_fn.findPlug('cellSize')
+                    self.cell_size = num_plug.asDouble()
+                if not self.min_distance:
+                    radius_plug = dag_fn.findPlug('minRadius')
+                    self.cell_size = radius_plug.asDouble()
+
+            else:
+                raise RuntimeError('The sample command only works on sporeNodes')
 
 def creator():
     return ompx.asMPxPtr(SporeSampler())
