@@ -29,6 +29,9 @@ class SporeLogger(object):
             if not self.logger.handlers:
                 self.add_handler()
 
+        if os.environ.get('SPORE_TEST_MODE'):
+            self.disable_logging()
+
     def add_handler(self):
         log_file = os.path.join(os.environ['SPORE_LOG_DIR'], 'spore.log')
         file_hdlr = handlers.RotatingFileHandler(log_file, maxBytes=1.5e6, backupCount=5)
@@ -42,6 +45,9 @@ class SporeLogger(object):
         for name in self.LOGGERS:
             logger = logging.getLogger(name)
             logger.setLevel(log_level)
+
+    def disable_logging(self):
+        logging.disable(logging.CRITICAL)
 
     def debug(self, msg, extra=None):
         """ log a debug message """
