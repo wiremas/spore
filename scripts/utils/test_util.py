@@ -19,8 +19,10 @@ class TestUtil(object):
     def run_tests(self):
         """ run the actual tests """
 
+        os.environ['SPORE_TEST_MODE'] = '1'
         self.suite = self.get_tests()
         self.runner.run(self.suite)
+        os.environ['SPORE_TEST_MODE'] = '0'
 
     def run_tests_from_commandline(self):
         """ run unittest from the command line with the mayapy interpreter """
@@ -40,6 +42,17 @@ class TestUtil(object):
         if hasattr(standalone, 'uninitialize'):
             standalone.uninitialize()
 
+    def run_tests_from_maya(self):
+        """
+
+        rollback_importer = RollbackImporter()
+        :return: """
+
+        # set test mode to on to notify spore that we are runnung tests
+
+        rollback_importer = RollbackImporter()
+        self.run_tests()
+        rollback_importer.rollback()
 
     def get_tests(self):
 
@@ -64,7 +77,7 @@ class TestCase(unittest.TestCase):
     def load_plugin(cls, plugin):
         if cmds.pluginInfo(plugin, q=True, l=True):
             cmds.unloadPlugin(plugin)
-        cmds.loadPlugin(plugin)
+        cmds.loadPlugin(plugin, qt=True)
         cls.plugins.add(plugin)
 
     @classmethod
@@ -73,7 +86,6 @@ class TestCase(unittest.TestCase):
             cmds.unloadPlugin(plugin)
         cls.plugins = set()
 
-
 class RollbackImporter(object):
     """ the rollbacl importer overrides the global importer
     to roll back loaded modules for testing.
@@ -81,23 +93,29 @@ class RollbackImporter(object):
     http://pyunit.sourceforge.net/notes/reloading.html """
 
     def __init__(self):
-        self.previous_modules = sys.modules.copy()
-        self.real_import = __builtin__.__import__
-        __builtin__.__import__ = self._import
-        self.newModules = {}
+        self.previous_modules = set(sys.modules.keys())
+        #  self.real_import = __builtin__.__import__
+        #  __builtin__.__import__ = self._import
+        #  self.newModules = {}
 
     def _import(self, name, globals=None, locals=None, fromlist=[]):
         """ overwirte the builtin import functionality """
+
+        print 'import', name, globals, locals, fromlist
         result = apply(self.real_import, (name, globals, locals, fromlist))
         self.newModules[name] = 1
         return result
 
-    def uninstall(self):
-        for modname in self.newModules.keys():
-            if not self.previousModules.has_key(modname):
+    def rollback(self):
+        """ rollback imported module to the old state when the
+        RollbackImporter was instanciated """
+
+        for modname in sys.modules.keys(): #self.newModules.keys():
+            if modname not in self.previous_modules:
                 # Force reload when modname next imported
                 del(sys.modules[modname])
-        __builtin__.__import__ = self.real_import
+        #  __builtin__.__import__ = self.real_import
+
 
 if __name__ == '__main__':
     test_util = TestUtil()
