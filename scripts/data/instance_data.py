@@ -172,7 +172,6 @@ class InstanceData(object):
         try:
             if position:
                 assert len(index) == position.length()
-                length = position.length()
             if scale:
                 assert len(index) == scale.length()
             if rotation:
@@ -198,8 +197,7 @@ class InstanceData(object):
             return
 
         if index:
-            index = sorted(index)
-            if index[-1] >= len(self):
+            if sorted(index)[-1]>= len(self):
                 self.logger.error('Could not set points: Operation would generate null pointer')
                 return
 
