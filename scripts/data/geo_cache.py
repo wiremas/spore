@@ -43,6 +43,9 @@ class GeoCache(object):
 
     #  @progress_bar.ProgressBar('Caching Geometry...')
     def cache_geometry(self, mesh):
+        """ cache the given geometry
+        :param mesh: the mesh which will be cached
+        :type mesh: MDagPath to the mesh """
 
         self.flush_cache()
         self.mesh = mesh
@@ -51,8 +54,8 @@ class GeoCache(object):
 
         #  in_mesh = node_utils.get_connected_in_mesh(self.thisMObject(), False)
         mesh_fn = om.MFnMesh(self.mesh)
-        num_polys = mesh_fn.numPolygons() # TODO - get in mesh fn
-        num_iter = num_polys / 100
+        #  num_polys = mesh_fn.numPolygons() # TODO - get in mesh fn
+        #  num_iter = num_polys / 100
 
         # store ferts for validating the cache later
         mesh_fn.getPoints(self.poly_verts)
@@ -65,7 +68,7 @@ class GeoCache(object):
 
         # initialize triangle data
         tri_points = om.MPointArray()
-        tri_ids = om.MIntArray()
+        vert_ids = om.MIntArray()
         tris_area = []
         smallest_tri = None
 
@@ -75,7 +78,7 @@ class GeoCache(object):
 
             # get face triangles
             poly_index = poly_iter.index()
-            poly_iter.getTriangles(tri_points, tri_ids, om.MSpace.kWorld)
+            poly_iter.getTriangles(tri_points, vert_ids, om.MSpace.kWorld)
 
             # get triangle data
             for i in xrange(tri_points.length() / 3):
@@ -126,6 +129,8 @@ class GeoCache(object):
         return area, AB, AC, normal
 
     def create_uv_lookup(self):
+        """ create a dict with an entry for every vertex and a list of
+        neighbouring faces as well as a kd tree tro look up close face ids """
 
         self.logger.debug('Create UV lookup for the current GeoCache')
 

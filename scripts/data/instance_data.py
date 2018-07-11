@@ -109,6 +109,19 @@ class InstanceData(object):
 
 
     def append_points(self, position, scale, rotation, instance_id, visibility, normal, tangent, u_coord, v_coord, poly_id, color):
+        """ append the given array to the instance data object
+        :param position:
+        :param scale:
+        :param rotation:
+        :param instance_id:
+        :param visibility:
+        :param normal:
+        :param tangent:
+        :param u_coord:
+        :param v_coord:
+        :param poly_id:
+        :param color:
+        :return: """
 
         appended_ids = om.MIntArray()
         for i in xrange(position.length()):
@@ -138,7 +151,10 @@ class InstanceData(object):
                    instance_id=None, visibility=None, normal=None,
                    tangent=None, u_coord=None, v_coord=None, poly_id=None,
                    color=None):
-        """ set points identified by the given index for the given array(s)
+        """ set points identified by the given index(s) for the given array(s)
+        if an index is not within the bounds of the instance data object
+        the operation will fail. if length of the given arrays is not the same
+        the operation will fail.
         :param index list: list in indexes to set
         :param position MVectorArray: array of position data
         :param scalae MVectorArray:
@@ -159,34 +175,24 @@ class InstanceData(object):
                 length = position.length()
             if scale:
                 assert len(index) == scale.length()
-                length = scale.length()
             if rotation:
                 assert len(index) == rotation.length()
-                length = rotation.length()
             if instance_id:
                 assert len(index) == instance_id.length()
-                length = instance_id.length()
             if visibility:
                 assert len(index) == visibility.length()
-                length = visibility.length()
             if normal:
                 assert len(index) == normal.length()
-                length = normal.length()
             if tangent:
                 assert len(index) == tangent.length()
-                length = tangent.length()
             if u_coord:
                 assert len(index) == u_coord.length()
-                length = u_coord.length()
             if v_coord:
                 assert len(index) == v_coord.length()
-                length = v_coord.length()
             if poly_id:
                 assert len(index) == poly_id.length()
-                length = poly_id.length()
             if color:
                 assert len(index) == color.length()
-                length = color.length()
         except AssertionError:
             self.logger.error('Could not set points: Array length does not match'.format(self.node_name))
             return
@@ -194,12 +200,11 @@ class InstanceData(object):
         if index:
             index = sorted(index)
             if index[-1] >= len(self):
-                self.set_length(index[-1])
-        else:
-            return
+                self.logger.error('Could not set points: Operation would generate null pointer')
+                return
 
         # set points
-        for i in xrange(length):
+        for i in xrange(len(index)):
             if position:
                 self.position.set(position[i], index[i])
                 self.np_position.itemset((index[i], 0), position[i].x)
@@ -257,6 +262,7 @@ class InstanceData(object):
 
         if index >= self.position.length():
             self.logger.error('Can\'t set point data: Index out of range')
+            return
 
         self.position.set(position, index)
         self.rotation.set(rotation, index)
@@ -276,6 +282,10 @@ class InstanceData(object):
                      visibility, normal, tangent, u_coord, v_coord, poly_id,
                      color):
 
+        if index > len(self):
+            self.logger.error('Failed to insert point: index out of range')
+            return
+
         self.position.insert(position, index)
         self.scale.insert(scale, index)
         self.rotation.insert(rotation, index)
@@ -288,9 +298,10 @@ class InstanceData(object):
         self.poly_id.insert(poly_id, index)
         self.color.insert(color, index)
         self.unique_id.insert(index, index)
-        np.insert(self.np_position, index, [position.x,
-                                            position.y,
-                                            position.z])
+        self.np_position = np.insert(self.np_position, index, [position.x,
+                                                               position.y,
+                                                               position.z],
+                                    axis=0)
 
     def update_unique_id(self):
         """ make sure each point has a unique id.
@@ -437,26 +448,14 @@ class InstanceData(object):
         has initially hidden them and is tearn down when the has been context left """
 
         self.logger.debug('Cleaning up InstanceData...')
-        invalid_ids = [i for i in xrange(self.visibility.length()) if self.visibility[i] == 0]
 
+        if not self.is_valid():
+            self.logger.error('Cleanup operation failed, Instance Data is out of sync.')
+            return
+
+        invalid_ids = [i for i in xrange(self.visibility.length()) if self.visibility[i] == 0]
         if invalid_ids:
             invalid_ids = sorted(invalid_ids, reverse=True)
-
-            if invalid_ids[0] > len(self) - 1:
-                self.logger.error('Cleanup operation about to fail. ID out of range: {} out of {}. Try to rescue...'.format(invalid_ids[0], len(self)))
-
-                max_id = invalid_ids.pop(-1)
-                while max_id > len(self) - 1:
-                    if len(invalid_ids):
-                        max_id = invalid_ids.pop(-1)
-                    else:
-                        self.logger.critical('Cleanup operation failed: All IDs where invald')
-                        return
-
-            if not self.is_valid():
-                self.logger.error('Cleanup operation failed, Instance Data is out of sync.')
-                return
-
             for index in invalid_ids:
                 self.position.remove(index)
                 self.scale.remove(index)
@@ -471,7 +470,6 @@ class InstanceData(object):
                 self.color.remove(index)
                 self.unique_id.remove(index)
                 self.np_position = np.delete(self.np_position, index, 0)
-
             self.update_unique_id()
 
 
@@ -506,38 +504,22 @@ class InstanceData(object):
             if not len(other):
                 return
 
-            new_len = len(self) + len(other)
-            self.set_length(new_len)
-
-            for i in xrange(len(other)):
-                self.position.set(len(self), other[i])
-                self.rotation.set(len(self), other[i])
-                self.scale.set(len(self), other[i])
-                self.instance_id.set(len(self), other[i])
-                self.visibility.set(len(self), other[i])
-                self.normal.set(len(self), other[i])
-                self.tangent.set(len(self), other[i])
-                self.u_coord.set(len(self), other[i])
-                self.v_coord.set(len(self), other[i])
-                self.poly_id.set(len(self), other[i])
-                self.color.set(len(self), other[i])
-                self.unique_id.set(len(self), len(self))
+            ids = range(len(self), len(self) + len(other))
+            self.set_length(len(self) + len(other))
+            self.set_points(ids, other.position, other.rotation, other.scale,
+                            other.instance_id, other.visibility, other.normal,
+                            other.tangent, other.u_coord, other.v_coord,
+                            other.poly_id, other.color)
+            return self
 
         else:
             self.logger.error('Can only add InstanceData to InstanceData. Not {} to InstanceData'.format(type(other)))
-            return self
-
-        return self
+            return
 
     def __iadd__(self, other):
         return self + other
 
-    #  def __repr__(self):
-    #      pass
-    #
-    #  def __str__(self):
-    #      return 'INSTANCE DATA OBJECT'
-    #
     def __del__(self):
-        print 'del ptc'
+        #  print 'del ptc'
+        pass
 
