@@ -1,5 +1,4 @@
 import math
-from abc import ABCMeta, abstractmethod
 
 import maya.cmds as cmds
 import maya.OpenMaya as om
@@ -10,13 +9,11 @@ from PySide2.QtWidgets import QWidget, QLabel, QGridLayout
 
 import window_utils
 import event_filter
-reload(event_filter)
-reload(window_utils)
 
 class Canvas(QWidget):
     """ Canvas widget to draw on top of the viewport """
-    def __init__(self, parent=None):
-        super(Canvas, self).__init__()
+    def __init__(self, parent):
+        super(Canvas, self).__init__(parent=parent)
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.SplashScreen | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -26,7 +23,7 @@ class Canvas(QWidget):
 
         self.canvas_event_filter = event_filter.CanvasEventFilter()
         self.install_event_filter()
-        self.resize()
+        self.resize_event()
         self.show()
 
     def install_event_filter(self):
@@ -34,7 +31,7 @@ class Canvas(QWidget):
 
         self.canvas_event_filter.enter_event.connect(self.enter_widget)
         self.canvas_event_filter.leave_event.connect(self.leave_widget)
-        self.canvas_event_filter.resize_event.connect(self.resize)
+        self.canvas_event_filter.resize_event.connect(self.resize_event)
         view_wdg = window_utils.active_view_wdg()
         view_wdg.installEventFilter(self.canvas_event_filter)
 
@@ -45,14 +42,16 @@ class Canvas(QWidget):
         view_wdg.removeEventFilter(self.canvas_event_filter)
 
     @Slot(QEvent)
-    def resize(self):
+    def resize_event(self):
         """ resize the widget to match the viewport """
 
         view_wdg = window_utils.active_view_wdg()
         wdg_size = view_wdg.rect()
         wdg_pos = view_wdg.pos()
         abs_pos = view_wdg.mapToGlobal(wdg_pos)
-        self.setGeometry(abs_pos.x(), abs_pos.y(), wdg_size.width(), wdg_size.height())
+        #  self.setGeometry(abs_pos.x(), abs_pos.y(), wdg_size.width(), wdg_size.height())
+        self.resize(wdg_size.width(), wdg_size.height())
+        self.move(abs_pos.x(), abs_pos.y())
 
     @Slot(QEvent)
     def enter_widget(self):
@@ -82,9 +81,9 @@ class CircularBrush(Canvas):
     """ Draw a circular brush around the coursor
     based on the given brush state """
 
-    def __init__(self, brush_state):
+    def __init__(self, brush_state, parent):
 
-        super(CircularBrush, self).__init__()
+        super(CircularBrush, self).__init__(parent=parent)
         self.brush_state = brush_state
 
     def paintEvent(self, event):
@@ -154,7 +153,7 @@ class HelpDisplay(Canvas):
                              'Ctrl': 'Align to Stroke'},
                    'spray': {'Shift': 'Drag',
                              'Ctrl': 'Align to Stroke',
-                             'b': 'Mofify Radius'},
+                             'b': 'Modify Radius'},
                    'scale': {'Shift': 'Smooth Scale',
                              'Ctrl': 'Randomize Scale'},
                    'align': {'Shift': 'Smooth Align (Not implemented yet)',
@@ -164,10 +163,10 @@ class HelpDisplay(Canvas):
                    'remove': {'Shift': 'Restore',
                               'Ctrl': 'Random Delete'}}
 
-    def __init__(self, mode, parent=None):
-        super(HelpDisplay, self).__init__()
+    def __init__(self, mode, parent):
+        super(HelpDisplay, self).__init__(parent=parent)
 
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.SplashScreen | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput)
+        #  self.setWindowFlags(Qt.FramelessWindowHint | Qt.SplashScreen | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput)
         self.mapping = self.key_mapping[mode]
         self.mode = mode
         self.visible = True
