@@ -323,7 +323,10 @@ class SporeToolCmd(ompx.MPxToolCommand):
             scale = self.get_scale(flag, i)
             position = self.get_offset(position, normal, flag, i)
             instance_id = self.get_instance_id(flag, i)
-            u_coord, v_coord = mesh_utils.get_uv_at_point(self.brush_state.target, position)
+            # TODO - this is potentially a performance bottleneck on bigger meshes
+            #  u_coord, v_coord = mesh_utils.get_uv_at_point(self.brush_state.target, position)
+            u_coord = 0.0
+            v_coord = 0.0
             color = om.MVector(0, 0, 0)
 
             # set internal cached points
@@ -1192,8 +1195,8 @@ class SporeContext(ompx.MPxContext):
         if self.state.settings['mode'] == 'place': #'place':
             self._setCursor(omui.MCursor.crossHairCursor)
         else:
-            self.canvas = canvas.CircularBrush(self.state)
-        self.help_display = canvas.HelpDisplay(self.state.settings['mode'])
+            self.canvas = canvas.CircularBrush(self.state, None)
+        self.help_display = canvas.HelpDisplay(self.state.settings['mode'], None)
         self.help_display.set_visible(False)
 
     def toolOffCleanup(self):
