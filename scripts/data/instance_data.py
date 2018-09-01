@@ -197,7 +197,7 @@ class InstanceData(object):
             return
 
         if index:
-            if sorted(index)[-1]>= len(self):
+            if sorted(index)[-1] >= len(self):
                 self.logger.error('Could not set points: Operation would generate null pointer')
                 return
 
@@ -310,6 +310,7 @@ class InstanceData(object):
 
     def length(self):
         # TODO - do some checking if all the array are the same length?
+        # TODO - this should be deprecated since we can use len()
         return len(self)
 
     def build_kd_tree(self, refresh_position=False):
@@ -386,53 +387,64 @@ class InstanceData(object):
             return list(neighbours)
 
     def is_valid(self):
-        """ check if the internal data is in sync """
+        """ check if the internal data is in sync. otherwise try to
+        repair some of the arrays if possible. """
 
         try:
-            assert self.position.length() == self.rotation.length()
-            assert self.position.length() == self.scale.length()
-            assert self.position.length() == self.instance_id.length()
-            assert self.position.length() == self.visibility.length()
-            assert self.position.length() == self.normal.length()
-            assert self.position.length() == self.tangent.length()
-            assert self.position.length() == self.u_coord.length()
-            assert self.position.length() == self.v_coord.length()
-            assert self.position.length() == self.poly_id.length()
-            assert self.position.length() == self.color.length()
-            assert self.position.length() == self.unique_id.length()
-            assert self.position.length() == len(self.np_position)
-            return True
+            assert len(self) == self.rotation.length()
+            assert len(self) == self.scale.length()
+            assert len(self) == self.instance_id.length()
+            assert len(self) == self.normal.length()
+            assert len(self) == self.tangent.length()
+            assert len(self) == len(self.np_position)
         except AssertionError:
             self.logger.error('InstanceData validation failed!')
-            print self.position.length()
-            print self.scale.length()
-            print self.instance_id.length()
-            print self.visibility.length()
-            print self.normal.length()
-            print self.tangent.length()
-            print self.u_coord.length()
-            print self.v_coord.length()
-            print self.poly_id.length()
-            print self.color.length()
-            print self.unique_id.length()
-            print len(self.np_position)
             return False
-            # TODO - try to repair
 
+        try:
+            assert len(self) == self.visibility.length()
+        except AssertionError:
+            self.logger.warning(
+                'InstanceData validation faild. Trying to repair visibility...'
+            )
+            [self.visibility.set(1, i) for i in range(len(self))]
+        try:
+            assert len(self) == self.u_coord.length()
+        except AssertionError:
+            self.logger.warning(
+                'InstanceData validation faild. Trying to repair u coords...'
+            )
+            [self.u_coord.set(0, i) for i in range(len(self))]
+        try:
+            assert len(self) == self.v_coord.length()
+        except AssertionError:
+            self.logger.warning(
+                'InstanceData validation faild. Trying to repair v coords...'
+            )
+            [self.v_coord.set(0, i) for i in range(len(self))]
+        try:
+            assert len(self) == self.poly_id.length()
+        except AssertionError:
+            self.logger.warning(
+                'InstanceData validation faild. Trying to repair poly id...'
+            )
+            [self.poly_id.set(0, i) for i in range(len(self))]
+        try:
+            assert len(self) == self.color.length()
+        except AssertionError:
+            self.logger.warning(
+                'InstanceData validation faild. Trying to repair color...'
+            )
+            [self.color.set(1, i) for i in range(len(self))]
+        try:
+            assert len(self) == self.unique_id.length()
+        except AssertionError:
+            self.logger.warning(
+                'InstanceData validation faild. Trying to repair point id...'
+            )
+            [self.unique_id.set(i, i) for i in range(len(self))]
 
-    #          self.position.remove(i)
-    #          self.np_position = np.delete(self.np_position, i, 0)
-    #          self.scale.remove(i)
-    #          self.rotation.remove(i)
-    #          self.instance_id.remove(i)
-    #          self.visibility.remove(i)
-    #          self.normal.remove(i)
-    #          self.tangent.remove(i)
-    #          self.u_coord.remove(i)
-    #          self.v_coord.remove(i)
-    #          self.poly_id.remove(i)
-    #          self.color.remove(i)
-    #
+        return True
 
     def clear(self):
         """ remove all points from the object """
@@ -451,9 +463,10 @@ class InstanceData(object):
             self.logger.error('Cleanup operation failed, Instance Data is out of sync.')
             return
 
-        invalid_ids = [i for i in xrange(self.visibility.length()) if self.visibility[i] == 0]
+        invalid_ids = sorted([i for i in xrange(self.visibility.length()) if self.visibility[i] == 0],
+                             reverse=True)
+
         if invalid_ids:
-            invalid_ids = sorted(invalid_ids, reverse=True)
             for index in invalid_ids:
                 self.position.remove(index)
                 self.scale.remove(index)
