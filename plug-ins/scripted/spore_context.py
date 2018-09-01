@@ -118,7 +118,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
     def doIt(self, *args):
         if args:
-            self.logger.error('Call the sporeToolCmd is not implemented')
+            self.logger.error('Calling the sporeToolCmd is not implemented')
             return
 
         flag = self.brush_state.action
@@ -651,8 +651,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
         self.instance_data.set_points(changed_ids, instance_id=self.instance_id)
         self.instance_data.set_state()
 
-
-
     """ ------------------------------------------------------- """
     """ delete """
     """ ------------------------------------------------------- """
@@ -665,6 +663,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
         position, normal, tangent = self.get_brush_coords()
         radius = self.brush_state.radius
         neighbour = self.instance_data.get_closest_points(position, radius, self.brush_state.settings['ids'])
+
         if neighbour:
             self.set_cache_length(len(neighbour))
         else:
@@ -710,8 +709,6 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         self.instance_data.set_points(changed_ids, visibility=self.visibility)
         self.instance_data.set_state()
-
-
 
     """ ------------------------------------------------------- """
     """ undo """
@@ -1298,7 +1295,8 @@ class SporeContext(ompx.MPxContext):
 
             #  instanciate the tool command
             self.create_tool_command()
-            if self.state.meta_mod is False or (self.state.meta_mod and self.state.shift_mod): # and self.state.shift_mod is False:
+            if self.state.meta_mod is False \
+            or (self.state.meta_mod and self.state.shift_mod):
                 self.tool_cmd.doIt()
 
 
@@ -1443,7 +1441,11 @@ class SporeContext(ompx.MPxContext):
 
         tool_cmd = self._newToolCommand()
         self.tool_cmd = K_TRACKING_DICTIONARY.get(ompx.asHashable(tool_cmd))
-        self.tool_cmd.initialize_tool_cmd(self.state, self.instance_data)
+
+        if self.tool_cmd:
+            self.tool_cmd.initialize_tool_cmd(self.state, self.instance_data)
+        else:
+            self.logger.warn('Could not fetch tool command')
 
 
 """ -------------------------------------------------------------------- """
