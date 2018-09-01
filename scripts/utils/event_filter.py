@@ -122,7 +122,7 @@ class MouseEventFilter(QObject):
 
         if event.type() == QEvent.MouseMove:
 
-            # emit mouse moved signa and the drag signal if the mouse
+            # emit mouse moved signal and the drag signal if the mouse
             # button is clicked
             position = event.pos()
             self.mouse_moved.emit(position)
@@ -136,7 +136,8 @@ class MouseEventFilter(QObject):
             position = event.pos()
             self.mouse_moved.emit(position)
 
-        if event.type() == QEvent.MouseButtonPress:
+        if event.type() == QEvent.MouseButtonPress \
+        or event.type() == QEvent.MouseButtonDblClick:
 
             # set the mouse button clicked state and emit the clicked signal
             # if neither control nor alt modifiers are pressed
