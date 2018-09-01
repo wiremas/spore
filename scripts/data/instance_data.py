@@ -237,7 +237,7 @@ class InstanceData(object):
         arrays since this would destroy instance data """
 
         if len(self) > length:
-            self.logger.warning('Set length would destroy instance Data. Skipped...')
+            self.logger.warn('Set length would destroy instance Data. Skipped...')
             return
 
         self.position.setLength(length)
@@ -404,44 +404,50 @@ class InstanceData(object):
         try:
             assert len(self) == self.visibility.length()
         except AssertionError:
-            self.logger.warning(
+            self.logger.warn(
                 'InstanceData validation faild. Trying to repair visibility...'
             )
+            self.visibility.setLength(len(self))
             [self.visibility.set(1, i) for i in range(len(self))]
         try:
             assert len(self) == self.u_coord.length()
         except AssertionError:
-            self.logger.warning(
+            self.logger.warn(
                 'InstanceData validation faild. Trying to repair u coords...'
             )
+            self.u_coord.setLength(len(self))
             [self.u_coord.set(0, i) for i in range(len(self))]
         try:
             assert len(self) == self.v_coord.length()
         except AssertionError:
-            self.logger.warning(
+            self.logger.warn(
                 'InstanceData validation faild. Trying to repair v coords...'
             )
+            self.v_coord.setLength(len(self))
             [self.v_coord.set(0, i) for i in range(len(self))]
         try:
             assert len(self) == self.poly_id.length()
         except AssertionError:
-            self.logger.warning(
+            self.logger.warn(
                 'InstanceData validation faild. Trying to repair poly id...'
             )
+            self.poly_id.setLength(len(self))
             [self.poly_id.set(0, i) for i in range(len(self))]
         try:
             assert len(self) == self.color.length()
         except AssertionError:
-            self.logger.warning(
+            self.logger.warn(
                 'InstanceData validation faild. Trying to repair color...'
             )
+            self.color.setLength(len(self))
             [self.color.set(1, i) for i in range(len(self))]
         try:
             assert len(self) == self.unique_id.length()
         except AssertionError:
-            self.logger.warning(
+            self.logger.warn(
                 'InstanceData validation faild. Trying to repair point id...'
             )
+            self.unique_id.setLength(len(self))
             [self.unique_id.set(i, i) for i in range(len(self))]
 
         return True
