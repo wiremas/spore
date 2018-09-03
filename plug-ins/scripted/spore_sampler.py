@@ -539,7 +539,6 @@ class SporeSampler(ompx.MPxCommand):
     def disk_sampling_2d(self, radius, u=1, v=1):
         """ sample poisson disk samples in uv space
         note: the given radius must be between 0 and 1 """
-        #  def poisson(radius, k, w, h, n):
 
         # TODO - make uv sample space editable for user
 
@@ -554,16 +553,32 @@ class SporeSampler(ompx.MPxCommand):
 
         grid = [None] * col * row
 
-        x = random.random() * u  # random.uniform( 0, w )
-        y = random.random() * v  # random.uniform( 0, h )
+        #  x = random.random() * u
+        #  y = random.random() * v
+        #  since x=1 + y=1 would raise an index err let's assume the first point
+        #  at 0.5 and 0.5
+        x = 0.5
+        y = 0.5
         pos = (x, y)
 
         current_col = int(x / cellsize)
         current_row = int(y / cellsize)
 
-        grid[current_col + current_row * col] = pos
+        try:
+            grid[current_col + current_row * col] = pos
+        except IndexError as e:
+            # this should not happen any more since the initial point is at
+            # 0.5 / 0.5 but just in case let's log what causes the index error
+            self.logger.error('Error intializing 2d poisson sampler. '
+                              'grid of len({}) build with {} columns, {} rows. '
+                              'Initial index is: {}, {}'.format(
+                                  len(grid), col, row, current_col, current_row)
+                              )
+            raise IndexError(e)
+
         active.append(pos)
         ordered.append(pos)
+
 
         while len(active) > 0:
 
@@ -641,8 +656,6 @@ class SporeSampler(ompx.MPxCommand):
                     self.point_data.set(i, position, normal, 1, u_coord, 1 - v_coord)
                 except:
                     continue
-
-
 
     """ ---------------------------------------------------------------- """
     """ spatial utils """
