@@ -104,32 +104,41 @@ class SporeManager(object):
                 #  spore_wdg.view_bounding_boxes.connect(self.toggle_view)
                 #  spore_wdg.view_hide.connect(self.toggle_view)
 
-
-
-
     def get_spore_setups(self):
         """ return a dictionary with an entry for each target mesh
         and for each entry a list with all connected spore nodes """
 
         spore_nodes = cmds.ls(type='sporeNode', l=True)
         targets = collections.defaultdict(list)
-        [targets[node_utils.get_connected_in_mesh(node)].append(node) for node in spore_nodes]
+
+        #  TODO - once this can be debugged this would be the way to go
+        #  [targets[node_utils.get_connected_in_mesh(node)].append(node) for node in spore_nodes]
+
+        for node in spore_nodes:
+            target = node_utils.get_connected_in_mesh(node)
+            if target:
+                targets[target].append(node)
+
+            else: # May help to debbug a situation wherfe target is sometime None
+                target = cmds.getConnection('{}.inMesh'.format(node))
+                target_shape = cmds.listRelatives(cmds.ls(target), s=True, f=True)
+
+                if len(target_shape) == 1:
+                    obj_type = cmds.objectType(target_shape[0])
+                    self.logger.warning(
+                        'Getting target mesh failed but spore has been able '
+                        'to use fallback. target: {}, shape: {}, type: '
+                        '{}'.format(target, target_shape[0], obj_type))
+                    targets[target_shape] = node
+                else:
+                    obj_type = [cmds.objectType(s) for s in target_shape]
+                    raise RuntimeError(
+                        'Could not get target mesh and spore failed to use '
+                        'fallback. target {}, shapes {}, types: {}'.format(
+                            target, target_shape, obj_type)
+                    )
+
         return targets
-
-
-    def get_spore_target(self, node_name): # get_soil
-        node_fn = node_utils.get_dgfn_from_dagpath(node_name)
-        inmesh_plug = node_fn.findPlug('inMesh')
-        in_mesh = om.MDagPath()
-        if not inmesh_plug.isNull():
-            plugs = om.MPlugArray()
-            if inmesh_plug.connectedTo(plugs, True, False):
-                input_node = plugs[0].node()
-                if input_node.hasFn(om.MFn.kMesh):
-                    om.MDagPath.getAPathTo(input_node, in_mesh)
-                    if in_mesh.isValid():
-                        return in_mesh.fullPathName()
-
 
     """ -------------------------------------------------- """
     """ slots """
@@ -144,8 +153,9 @@ class SporeManager(object):
             cmds.select(spore_node)
             self.ui.clear_layout()
             self.refresh_spore()
-            self.logger.debug('Manager created new setup: {}, {}'.format(spore_node,
-                                                                         instancer))
+            self.logger.debug(
+                'Manager created new setup: {}, {}'.format(spore_node, instancer)
+            )
 
         else:
             self.logger.warn('Failed to create Spore. Nothing selected')

@@ -179,6 +179,12 @@ def get_connected_in_mesh(spore_node, as_string=True):
                         return in_mesh.fullPathName()
                     else:
                         return in_mesh
+                else:
+                    raise RuntimeError('Invalid connectedion to: {}'.format(in_mesh.fullPathName()))
+            else:
+                raise RuntimeError('inMesh plug is not connected to a poly mesh')
+        else:
+            raise RuntimeError('spore nodes\'s inMesh plug is not connected')
 
 def get_local_rotation(mobject):
     """ returns an transform node's world space rotation values
