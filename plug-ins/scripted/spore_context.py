@@ -188,6 +188,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
     def undoIt(self):
 
         undo_command = self.last_undo_journal.split(' ')[2:]
+        self.logger.info('Undo: {}'.format(undo_command))
         if not undo_command:
             self.logger.warn('No more steps to undo')
             return
@@ -249,6 +250,9 @@ class SporeToolCmd(ompx.MPxToolCommand):
 
         # This call adds the command to the undo queue and sets
         # the journal string for the command.
+        self.logger.info('{}'.format(
+            str([str(command.asString(i)) for i in xrange(command.length())][1:]).strip('[]'))
+        )
         ompx.MPxToolCommand._doFinalize(self, command)
 
         for i in xrange(command.length()):
@@ -1222,7 +1226,9 @@ class SporeContext(ompx.MPxContext):
         else:
             self.logger.warn('Could not delete help object from {} context'.format(mode))
 
-        self.logger.info('Spore Context clean up')
+        self.logger.info('Clean up after {} action'.format(
+            self.state.settings['mode']
+        ))
 
 
     """ -------------------------------------------------------------------- """
