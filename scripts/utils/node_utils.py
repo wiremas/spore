@@ -33,6 +33,8 @@ def get_mobject_from_name(name):
     """ get mObject from a given dag-path
     :param name : the name or dag-path to a shapenode to return a mObject to """
     sl = om.MSelectionList()
+    if not cmds.objExists(name):
+        raise RuntimeError('Object does not exist: {}'.format(name))
     om.MGlobal.getSelectionListByName(name, sl)
     node = om.MObject()
     sl.getDependNode(0, node)
@@ -164,7 +166,11 @@ def get_connected_in_mesh(spore_node, as_string=True):
     elif isinstance(spore_node, om.MObject):
         node_fn = om.MFnDependencyNode(spore_node)
     else:
-        raise TypeError('Expected type string or MObject, got: {}'.format(type(spore_node)))
+        raise TypeError(
+            'Expected type. Requires string or MObject, got: {}'.format(
+                type(spore_node)
+            )
+        )
 
     inmesh_plug = node_fn.findPlug('inMesh')
     in_mesh = om.MDagPath()
@@ -185,6 +191,15 @@ def get_connected_in_mesh(spore_node, as_string=True):
                 raise RuntimeError('inMesh plug is not connected to a poly mesh')
         else:
             raise RuntimeError('spore nodes\'s inMesh plug is not connected')
+    else:
+        try:
+            inmesh_plug = '{}.{}'.format(inmesh_plug.node(), inmesh_plug.name())
+        except:
+            pass
+        raise RuntimeError(
+            'Invalid plug does not refer to an attribute: {}\n '
+            'invalid connection?'.format(inmesh_plug)
+        )
 
 def get_local_rotation(mobject):
     """ returns an transform node's world space rotation values
