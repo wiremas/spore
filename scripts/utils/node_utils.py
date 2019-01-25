@@ -4,6 +4,7 @@ module provides quick acces to frequently used node utilities
 
 import math
 
+import maya.cmds as cmds
 import maya.OpenMaya as om
 
 
