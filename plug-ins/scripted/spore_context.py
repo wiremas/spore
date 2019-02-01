@@ -153,7 +153,7 @@ class SporeToolCmd(ompx.MPxToolCommand):
                 self.align_action(flag)
 
         # MOVE
-        elif self.brush_state.settings['mode'] == 'move': #'move':
+        elif self.brush_state.settings['mode'] == 'move':
             self.move_action(flag)
 
         # ID
