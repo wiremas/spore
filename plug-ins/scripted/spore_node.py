@@ -549,7 +549,8 @@ class SporeNode(ompx.MPxLocatorNode): #Node):
             om.MMessage().removeCallback(self.callbacks[i])
 
         obj_handle = om.MObjectHandle(self.thisMObject())
-        del sys._global_spore_tracking_dir[obj_handle.hashCode()]
+        if sys._global_spore_tracking_dir.has_key(obj_handle.hashCode()):
+            del sys._global_spore_tracking_dir[obj_handle.hashCode()]
 
     def compute(self, plug, data):
 
